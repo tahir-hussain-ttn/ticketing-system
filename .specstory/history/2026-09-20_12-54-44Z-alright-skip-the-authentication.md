@@ -13681,3 +13681,4076 @@ Traced to a genuine, known Spring Framework bug ([spring-framework#34986](https:
 - Ran the **entire quickstart** for real against this Postgres: create, list, detail, update, legal transition (200), illegal transition (409 `INVALID_TRANSITION`), add comment (201), blank comment (400), keyword search, status filter, blank-title validation (400), 404-not-found — all exactly as designed. Marked **T054 done** with real results, not a projection.
 
 **Tally: 57/58.** Only T057 (dependency vuln scan) still blocked — same NVD access issue as before, unrelated to this bug; left as-is rather than re-hang on it.
+
+---
+
+_**User (2026-09-21 07:49:59Z)**_
+
+<command-message>speckit-specify</command-message>
+<command-name>/speckit-specify</command-name>
+<command-args>Please add the listimg of comments in the scope of the application.</command-args>
+
+---
+
+_**User (2026-09-21 07:49:59Z)**_
+
+Base directory for this skill: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/.claude/skills/speckit-specify
+
+## User Input
+
+```text
+Please add the listimg of comments in the scope of the application.
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Pre-Execution Checks
+
+**Check for extension hooks (before specification)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_specify` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Outline
+
+The text the user typed after `/speckit-specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `Please add the listimg of comments in the scope of the application.` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+
+Given that feature description, do this:
+
+1. **Generate a concise short name** (2-4 words) for the feature:
+   - Analyze the feature description and extract the most meaningful keywords
+   - Create a 2-4 word short name that captures the essence of the feature
+   - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
+   - Preserve technical terms and acronyms (OAuth2, API, JWT, etc.)
+   - Keep it concise but descriptive enough to understand the feature at a glance
+   - Examples:
+     - "I want to add user authentication" → "user-auth"
+     - "Implement OAuth2 integration for the API" → "oauth2-api-integration"
+     - "Create a dashboard for analytics" → "analytics-dashboard"
+     - "Fix payment processing timeout bug" → "fix-payment-timeout"
+
+2. **Branch creation** (optional, via hook):
+
+   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+
+   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
+
+3. **Create the spec feature directory**:
+
+   Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
+
+   **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
+   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
+   2. Otherwise, auto-generate it under `specs/`:
+      - Check `.specify/init-options.json` for `feature_numbering` (preferred) or `branch_numbering` (deprecated, migration only — will be removed in a future release)
+      - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
+      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
+      - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
+      - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+      - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
+
+   **Create the directory and spec file**:
+   - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
+   - Resolve the active `spec-template` through the Spec Kit preset/template resolution stack (equivalent to `specify preset resolve spec-template`)
+   - Copy the resolved `spec-template` file to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
+   - Persist the resolved path to `.specify/feature.json`:
+     ```json
+     {
+       "feature_directory": "<resolved feature dir>"
+     }
+     ```
+     Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
+     This allows downstream commands (`/speckit-plan`, `/speckit-tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
+
+   **IMPORTANT**:
+   - You must only create one feature per `/speckit-specify` invocation
+   - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
+   - The spec directory and file are always created by this command, never by the hook
+
+4. Load the resolved active `spec-template` file to understand required sections.
+
+5. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
+
+6. Follow this execution flow:
+    1. Parse user description from arguments
+       If empty: ERROR "No feature description provided"
+    2. Extract key concepts from description
+       Identify: actors, actions, data, constraints
+    3. For unclear aspects:
+       - Make informed guesses based on context and industry standards
+       - Only mark with [NEEDS CLARIFICATION: specific question] if:
+         - The choice significantly impacts feature scope or user experience
+         - Multiple reasonable interpretations exist with different implications
+         - No reasonable default exists
+       - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+       - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+    4. Fill User Scenarios & Testing section
+       If no clear user flow: ERROR "Cannot determine user scenarios"
+    5. Generate Functional Requirements
+       Each requirement must be testable
+       Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+    6. Define Success Criteria
+       Create measurable, technology-agnostic outcomes
+       Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
+       Each criterion must be verifiable without implementation details
+    7. Identify Key Entities (if data involved)
+    8. Return: SUCCESS (spec ready for planning)
+
+7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+
+8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
+
+      ```markdown
+      # Specification Quality Checklist: [FEATURE NAME]
+
+      **Purpose**: Validate specification completeness and quality before proceeding to planning
+      **Created**: [DATE]
+      **Feature**: [Link to spec.md]
+
+      ## Content Quality
+
+      - [ ] No implementation details (languages, frameworks, APIs)
+      - [ ] Focused on user value and business needs
+      - [ ] Written for non-technical stakeholders
+      - [ ] All mandatory sections completed
+
+      ## Requirement Completeness
+
+      - [ ] No [NEEDS CLARIFICATION] markers remain
+      - [ ] Requirements are testable and unambiguous
+      - [ ] Success criteria are measurable
+      - [ ] Success criteria are technology-agnostic (no implementation details)
+      - [ ] All acceptance scenarios are defined
+      - [ ] Edge cases are identified
+      - [ ] Scope is clearly bounded
+      - [ ] Dependencies and assumptions identified
+
+      ## Feature Readiness
+
+      - [ ] All functional requirements have clear acceptance criteria
+      - [ ] User scenarios cover primary flows
+      - [ ] Feature meets measurable outcomes defined in Success Criteria
+      - [ ] No implementation details leak into specification
+
+      ## Notes
+
+      - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+      ```
+
+   b. **Run Validation Check**: Review the spec against each checklist item:
+      - For each item, determine if it passes or fails
+      - Document specific issues found (quote relevant spec sections)
+
+   c. **Handle Validation Results**:
+
+      - **If all items pass**: Mark checklist complete and proceed to the Mandatory Post-Execution Hooks section
+
+      - **If items fail (excluding [NEEDS CLARIFICATION])**:
+        1. List the failing items and specific issues
+        2. Update the spec to address each issue
+        3. Re-run validation until all items pass (max 3 iterations)
+        4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
+
+      - **If [NEEDS CLARIFICATION] markers remain**:
+        1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
+        2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
+        3. For each clarification needed (max 3), present options to user in this format:
+
+           ```markdown
+           ## Question [N]: [Topic]
+
+           **Context**: [Quote relevant spec section]
+
+           **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
+
+           **Suggested Answers**:
+
+           | Option | Answer | Implications |
+           |--------|--------|--------------|
+           | A      | [First suggested answer] | [What this means for the feature] |
+           | B      | [Second suggested answer] | [What this means for the feature] |
+           | C      | [Third suggested answer] | [What this means for the feature] |
+           | Custom | Provide your own answer | [Explain how to provide custom input] |
+
+           **Your choice**: _[Wait for user response]_
+           ```
+
+        4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
+           - Use consistent spacing with pipes aligned
+           - Each cell should have spaces around content: `| Content |` not `|Content|`
+           - Header separator must have at least 3 dashes: `|--------|`
+           - Test that the table renders correctly in markdown preview
+        5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
+        6. Present all questions together before waiting for responses
+        7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
+        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
+        9. Re-run validation after all clarifications are resolved
+
+   d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
+
+## Mandatory Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
+
+Check if `.specify/extensions.yml` exists in the project root.
+- If it does not exist, or no hooks are registered under `hooks.after_specify`, skip to the Completion Report.
+- If it exists, read it and look for entries under the `hooks.after_specify` key.
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+
+## Completion Report
+
+Report completion to the user with:
+- `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
+- `SPEC_FILE` — the spec file path
+- Checklist results summary
+- Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
+
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
+
+## Quick Guidelines
+
+- Focus on **WHAT** users need and **WHY**.
+- Avoid HOW to implement (no tech stack, APIs, code structure).
+- Written for business stakeholders, not developers.
+- DO NOT create any checklists that are embedded in the spec. That will be a separate command.
+
+### Section Requirements
+
+- **Mandatory sections**: Must be completed for every feature
+- **Optional sections**: Include only when relevant to the feature
+- When a section doesn't apply, remove it entirely (don't leave as "N/A")
+
+### For AI Generation
+
+When creating this spec from a user prompt:
+
+1. **Make informed guesses**: Use context, industry standards, and common patterns to fill gaps
+2. **Document assumptions**: Record reasonable defaults in the Assumptions section
+3. **Limit clarifications**: Maximum 3 [NEEDS CLARIFICATION] markers - use only for critical decisions that:
+   - Significantly impact feature scope or user experience
+   - Have multiple reasonable interpretations with different implications
+   - Lack any reasonable default
+4. **Prioritize clarifications**: scope > security/privacy > user experience > technical details
+5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
+6. **Common areas needing clarification** (only if no reasonable default exists):
+   - Feature scope and boundaries (include/exclude specific use cases)
+   - User types and permissions (if multiple conflicting interpretations possible)
+   - Security/compliance requirements (when legally/financially significant)
+
+**Examples of reasonable defaults** (don't ask about these):
+
+- Data retention: Industry-standard practices for the domain
+- Performance targets: Standard web/mobile app expectations unless specified
+- Error handling: User-friendly messages with appropriate fallbacks
+- Authentication method: Standard session-based or OAuth2 for web apps
+- Integration patterns: Use project-appropriate patterns (REST/GraphQL for web services, function calls for libraries, CLI args for tools, etc.)
+
+### Success Criteria Guidelines
+
+Success criteria must be:
+
+1. **Measurable**: Include specific metrics (time, percentage, count, rate)
+2. **Technology-agnostic**: No mention of frameworks, languages, databases, or tools
+3. **User-focused**: Describe outcomes from user/business perspective, not system internals
+4. **Verifiable**: Can be tested/validated without knowing implementation details
+
+**Good examples**:
+
+- "Users can complete checkout in under 3 minutes"
+- "System supports 10,000 concurrent users"
+- "95% of searches return results in under 1 second"
+- "Task completion rate improves by 40%"
+
+**Bad examples** (implementation-focused):
+
+- "API response time is under 200ms" (too technical, use "Users see results instantly")
+- "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
+- "React components render efficiently" (framework-specific)
+- "Redis cache hit rate above 80%" (technology-specific)
+
+## Done When
+
+- [ ] Specification written to `SPEC_FILE` and validated against quality checklist
+- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
+- [ ] Completion reported to user with feature directory, spec file path, and checklist results
+
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:17Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check existing specs numbering and extensions
+
+`ls specs/ && ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml" && cat .specify/init-options.json | grep -i numbering`
+
+```text
+001-ticket-management-backend
+NO extensions.yml
+  "feature_numbering": "sequential",
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:19Z)**_
+
+Next number is 002, sequential. No hooks to run.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:21Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Create feature directory and persist feature.json
+
+`mkdir -p specs/002-list-comments/checklists && echo '{"feature_directory": "specs/002-list-comments"}' > .specify/feature.json && cat .specify/feature.json`
+
+```text
+{"feature_directory": "specs/002-list-comments"}
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:47Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```markdown
+# Feature Specification: List Comments
+
+**Feature Branch**: `002-list-comments`
+
+**Created**: 2026-09-21
+
+**Status**: Draft
+
+**Input**: User description: "Please add the listing of comments in the scope of the application."
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Browse a Ticket's Comment History (Priority: P1)
+
+A support agent opens a ticket and wants to review its full comment history — every note
+added over the ticket's lifetime, in the order it was written — as its own retrievable list,
+independent of the rest of the ticket's fields.
+
+**Why this priority**: Comments are the primary record of what happened on a ticket. Without an
+explicit way to list them, that history is only ever a side-effect of fetching everything else
+about the ticket, which does not scale as comment volume grows and cannot be paged, sorted, or
+requested on its own.
+
+**Independent Test**: Can be fully tested by adding several comments to a ticket, then requesting
+that ticket's comment list on its own (without requesting the rest of the ticket record) and
+confirming every comment appears, in the order it was added.
+
+**Acceptance Scenarios**:
+
+1. **Given** a ticket with several comments, **When** a support agent requests that ticket's
+   comment list, **Then** every comment is returned, ordered from oldest to newest.
+2. **Given** a ticket with no comments yet, **When** a support agent requests that ticket's
+   comment list, **Then** an empty list is returned (not an error).
+3. **Given** a ticket with a very large number of comments, **When** a support agent requests
+   that ticket's comment list, **Then** the results are returned in manageable pages rather than
+   all at once, and the agent can page through the rest.
+4. **Given** a ticket identifier that does not exist, **When** a support agent requests its
+   comment list, **Then** the request is rejected with a clear "not found" error rather than an
+   empty list.
+
+---
+
+### Edge Cases
+
+- What happens when a ticket has thousands of comments? → The system MUST page the results
+  rather than return them all in one response (see SC-002).
+- What happens when a page number or page size outside the supported range is requested? → The
+  system MUST apply a sane bound or default rather than fail.
+- What happens when comments are added to a ticket while an agent is paging through its comment
+  list? → Each page reflects the comments present at the time of that page's request; the system
+  is not required to freeze the list for the duration of paging.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: System MUST allow retrieval of the list of comments belonging to a specific
+  ticket, as its own request, independent of retrieving the ticket's other fields.
+- **FR-002**: System MUST return a ticket's comments ordered from oldest to newest.
+- **FR-003**: System MUST return an empty list, not an error, when the ticket has no comments.
+- **FR-004**: System MUST reject a comment-list request for a ticket identifier that does not
+  exist, with a specific "not found" error, rather than an empty list.
+- **FR-005**: System MUST page comment results so that retrieval time does not grow unbounded as
+  a ticket accumulates more comments.
+
+### Key Entities
+
+- **Comment**: A timestamped note belonging to exactly one ticket (defined in the
+  001-ticket-management-backend feature). This feature adds a way to retrieve a ticket's
+  comments as their own list; it does not change what a comment is or how one is created.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: A support agent can retrieve a ticket's complete comment history, correctly
+  ordered, in a single request in 100% of attempts.
+- **SC-002**: Comment list retrieval for a ticket with up to 1,000 comments returns in under 2
+  seconds.
+- **SC-003**: 100% of comment-list requests for a non-existent ticket receive a specific
+  "not found" error rather than an empty or malformed result.
+
+## Assumptions
+
+- This feature extends 001-ticket-management-backend. Adding a comment and the shape of a
+  comment (its content and timestamp) are unchanged and out of scope here — only the ability to
+  retrieve a ticket's comments as their own list is added.
+- Default and maximum page sizes follow the same convention already established for listing
+  tickets in 001-ticket-management-backend, for consistency across the application.
+- No new user-facing comment data is introduced; this is a retrieval capability, not a new kind
+  of content.
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:49Z)**_
+
+Now the quality checklist.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:54Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```markdown
+# Specification Quality Checklist: List Comments
+
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-09-21
+**Feature**: [spec.md](../spec.md)
+
+## Content Quality
+
+- [x] No implementation details (languages, frameworks, APIs)
+- [x] Focused on user value and business needs
+- [x] Written for non-technical stakeholders
+- [x] All mandatory sections completed
+
+## Requirement Completeness
+
+- [x] No [NEEDS CLARIFICATION] markers remain
+- [x] Requirements are testable and unambiguous
+- [x] Success criteria are measurable
+- [x] Success criteria are technology-agnostic (no implementation details)
+- [x] All acceptance scenarios are defined
+- [x] Edge cases are identified
+- [x] Scope is clearly bounded
+- [x] Dependencies and assumptions identified
+
+## Feature Readiness
+
+- [x] All functional requirements have clear acceptance criteria
+- [x] User scenarios cover primary flows
+- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] No implementation details leak into specification
+
+## Notes
+
+- All items pass on first validation pass. No [NEEDS CLARIFICATION] markers were needed —
+  pagination defaults reuse the convention already established by 001-ticket-management-backend
+  (documented in Assumptions) instead of introducing a new open question.
+- Scope is deliberately narrow: only the retrieval/listing of an existing ticket's comments is
+  in scope. Comment creation and the comment data model are unchanged, per Assumptions.
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/checklists/requirements.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:50:58Z)**_
+
+All checklist items pass, zero `NEEDS CLARIFICATION`. No `.specify/extensions.yml` → hooks skipped.
+
+**Completion Report**
+
+- `SPECIFY_FEATURE_DIRECTORY`: `specs/002-list-comments`
+- `SPEC_FILE`: `specs/002-list-comments/spec.md`
+- Checklist: `specs/002-list-comments/checklists/requirements.md` — 16/16 pass, no open clarifications
+- 1 user story (P1: browse a ticket's comment history), 5 functional requirements, 3 measurable success criteria, `Comment` entity (references the existing entity from 001, doesn't redefine it)
+- Explicitly scoped as an extension of `001-ticket-management-backend`: comment creation and shape unchanged — this only adds standalone, paginated retrieval of a ticket's comments, separate from the ticket-detail payload
+- Ready for `/speckit-clarify` (optional, none needed) or `/speckit-plan`
+
+---
+
+_**User (2026-09-21 07:55:37Z)**_
+
+<command-message>speckit-clarify</command-message>
+<command-name>/speckit-clarify</command-name>
+<command-args>Do we plan to show comments timestamp?</command-args>
+
+---
+
+_**User (2026-09-21 07:55:37Z)**_
+
+Base directory for this skill: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/.claude/skills/speckit-clarify
+
+## User Input
+
+```text
+Do we plan to show comments timestamp?
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Pre-Execution Checks
+
+**Check for extension hooks (before clarification)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_clarify` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Outline
+
+Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
+
+Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/speckit-plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+
+Execution steps:
+
+1. Run `python3 .specify/scripts/python/check_prerequisites.py --json --paths-only` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
+   - `FEATURE_DIR`
+   - `FEATURE_SPEC`
+   - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
+   - If JSON parsing fails, abort and instruct user to re-run `/speckit-specify` or verify feature branch environment.
+   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+2. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
+
+3. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+
+   Functional Scope & Behavior:
+   - Core user goals & success criteria
+   - Explicit out-of-scope declarations
+   - User roles / personas differentiation
+
+   Domain & Data Model:
+   - Entities, attributes, relationships
+   - Identity & uniqueness rules
+   - Lifecycle/state transitions
+   - Data volume / scale assumptions
+
+   Interaction & UX Flow:
+   - Critical user journeys / sequences
+   - Error/empty/loading states
+   - Accessibility or localization notes
+
+   Non-Functional Quality Attributes:
+   - Performance (latency, throughput targets)
+   - Scalability (horizontal/vertical, limits)
+   - Reliability & availability (uptime, recovery expectations)
+   - Observability (logging, metrics, tracing signals)
+   - Security & privacy (authN/Z, data protection, threat assumptions)
+   - Compliance / regulatory constraints (if any)
+
+   Integration & External Dependencies:
+   - External services/APIs and failure modes
+   - Data import/export formats
+   - Protocol/versioning assumptions
+
+   Edge Cases & Failure Handling:
+   - Negative scenarios
+   - Rate limiting / throttling
+   - Conflict resolution (e.g., concurrent edits)
+
+   Constraints & Tradeoffs:
+   - Technical constraints (language, storage, hosting)
+   - Explicit tradeoffs or rejected alternatives
+
+   Terminology & Consistency:
+   - Canonical glossary terms
+   - Avoided synonyms / deprecated terms
+
+   Completion Signals:
+   - Acceptance criteria testability
+   - Measurable Definition of Done style indicators
+
+   Misc / Placeholders:
+   - TODO markers / unresolved decisions
+   - Ambiguous adjectives ("robust", "intuitive") lacking quantification
+
+   For each category with Partial or Missing status, add a candidate question opportunity unless:
+   - Clarification would not materially change implementation or validation strategy
+   - The item is specifically about implementation method, tech-stack comparison, or task breakdown (note internally)
+
+4. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
+    - Maximum of 5 total questions across the whole session.
+    - Each question must be answerable with EITHER:
+       - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
+       - A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words").
+    - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
+    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
+    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
+    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
+
+5. Sequential questioning loop (interactive):
+    - Present EXACTLY ONE question at a time.
+    - **Question writing quality (applies to every question, MC or short-answer):**
+       - Lead with `**Question:**` followed by a full interrogative that ends with `?`. The question text before the `?` must make sense on its own.
+       - NEVER use a topic label, section heading, or requirement id as the question itself. For example, `Acceptance device/runtime matrix (FR-023)` is INVALID — it is a label, not a question.
+       - After the `?`, the only permitted suffix is an optional parenthesized requirement/question id. Exact format: `**Question:** <interrogative>?` or `**Question:** <interrogative>? (FR-023)`. Never put the id before the `?`, and never use the id (alone or with a topic label) as the whole prompt.
+       - Immediately after the question line, add one plain-language "Why it matters" sentence (the stake for acceptance or shipping) before the recommendation/options.
+       - Use everyday wording; introduce jargon only if defined in the same sentence. Self-check: a reader who does not know Spec Kit must be able to answer from the Question line alone. Terse is fine; cryptic labels are not.
+    - For multiple‑choice questions:
+       - **Analyze all options** and determine the **most suitable option** based on:
+          - Best practices for the project type
+          - Common patterns in similar implementations
+          - Risk reduction (security, performance, maintainability)
+          - Alignment with any explicit project goals or constraints visible in the spec
+       - Present your **recommended option prominently** at the top with clear reasoning (1-2 sentences explaining why this is the best choice).
+       - Format as: `**Recommended:** Option [X] - <reasoning>`
+       - Then render all options as a Markdown table:
+
+       | Option | Description |
+       |--------|-------------|
+       | A | <Option A description> |
+       | B | <Option B description> |
+       | C | <Option C description> (add D/E as needed up to 5) |
+       | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
+
+       - After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+    - For short‑answer style (no meaningful discrete options):
+       - Provide your **suggested answer** based on best practices and context.
+       - Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
+       - Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
+    - After the user answers:
+       - If the user replies with "yes", "recommended", or "suggested", use your previously stated recommendation/suggestion as the answer.
+       - Otherwise, validate the answer maps to one option or fits the <=5 word constraint.
+       - If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
+       - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
+    - Stop asking further questions when:
+       - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
+       - User signals completion ("done", "good", "no more"), OR
+       - You reach 5 asked questions.
+    - Never reveal future queued questions in advance.
+    - If no valid questions exist at start, immediately report no critical ambiguities.
+
+6. Integration after EACH accepted answer (incremental update approach):
+    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
+    - For the first integrated answer in this session:
+       - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
+       - Under it, create (if not present) a `### Session YYYY-MM-DD` subheading for today.
+    - Append a bullet line immediately after acceptance: `- Q: <question> → A: <final answer>`.
+    - Then immediately apply the clarification to the most appropriate section(s):
+       - Functional ambiguity → Update or add a bullet in Functional Requirements.
+       - User interaction / actor distinction → Update User Stories or Actors subsection (if present) with clarified role, constraint, or scenario.
+       - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering; note added constraints succinctly.
+       - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes (convert vague adjective to metric or explicit target).
+       - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it).
+       - Terminology conflict → Normalize term across spec; retain original only if necessary by adding `(formerly referred to as "X")` once.
+    - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
+    - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
+    - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
+    - Keep each inserted clarification minimal and testable (avoid narrative drift).
+
+7. Validation (performed after EACH write plus final pass):
+   - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
+   - Total asked (accepted) questions ≤ 5.
+   - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
+   - No contradictory earlier statement remains (scan for now-invalid alternative choices removed).
+   - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
+   - Terminology consistency: same canonical term used across all updated sections.
+
+8. Write the updated spec back to `FEATURE_SPEC`.
+
+9. **Re-validate Spec Quality Checklist** (if it exists):
+   - Check if `FEATURE_DIR/checklists/requirements.md` exists.
+   - If it does NOT exist, skip this step silently.
+   - If it exists:
+     1. Read the checklist file.
+     2. Identify all GitHub task-list checkbox lines — lines matching `- [ ]`, `- [x]`, or `- [X]` (case-insensitive, tolerant of leading whitespace for nested items) outside of code fences. Ignore all other content (headings, notes, non-checkbox bullets, metadata).
+     3. For each checkbox line, record its current marker state (checked or unchecked) and item text into a before-snapshot list.
+     4. Re-evaluate each checkbox item against the **updated** spec (the version just saved in step 7).
+     5. For each checkbox item, update only if the checked/unchecked state actually changes:
+        - If the item now passes and was unchecked: change `[ ]` to `[x]`.
+        - If the item now fails and was checked: change `[x]`/`[X]` to `[ ]`.
+        - If the state is unchanged: leave the marker as-is (preserve existing case to avoid cosmetic diffs).
+     6. Save the updated checklist file. **Only toggle the `[ ]`/`[x]` marker portion of checkbox lines whose state changed.** All other file content — headings, metadata, notes, line ordering, whitespace — must remain unchanged to avoid noisy diffs.
+     7. Compare the before-snapshot with the current state to compute three lists for the Completion Report:
+        - **Newly passing**: items that changed from unchecked to checked.
+        - **Regressions**: items that changed from checked to unchecked.
+        - **Still unchecked**: items that remain unchecked.
+     8. Record the before/after pass counts as checked/total checkbox items (e.g., "12/16 → 15/16 items passing").
+
+Behavior rules:
+
+- If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
+- If spec file missing, instruct user to run `/speckit-specify` first (do not create a new spec here).
+- Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
+- Avoid speculative tech stack questions unless the absence blocks functional clarity.
+- Respect user early termination signals ("stop", "done", "proceed").
+- If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
+- If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
+
+Context for prioritization: Do we plan to show comments timestamp?
+
+## Mandatory Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
+
+Check if `.specify/extensions.yml` exists in the project root.
+- If it does not exist, or no hooks are registered under `hooks.after_clarify`, skip to the Completion Report.
+- If it exists, read it and look for entries under the `hooks.after_clarify` key.
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+
+## Completion Report
+
+Report completion (after questioning loop ends or early termination):
+- Number of questions asked & answered.
+- Path to updated spec.
+- Sections touched (list names).
+- Spec quality checklist status (if `FEATURE_DIR/checklists/requirements.md` was re-validated): show before/after pass counts (e.g., "Spec Quality Checklist: 12/16 → 15/16 items passing") and list any items that changed state — both newly checked (unchecked → checked) and any regressions (checked → unchecked). If any items remain unchecked, list them as areas needing attention.
+- Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota, or remaining item is specifically implementation method, tech-stack comparison, or task breakdown), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
+- If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit-plan` or run `/speckit-clarify` again later post-plan.
+- Suggested next command.
+
+## Done When
+
+- [ ] Spec ambiguities identified and clarifications integrated into spec file
+- [ ] Spec quality checklist re-validated against updated spec (if `FEATURE_DIR/checklists/requirements.md` exists)
+- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
+- [ ] Completion reported to user with questions answered, sections touched, checklist status, and coverage summary
+
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 07:55:50Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check prerequisites for clarify on active feature
+
+```bash
+python3 .specify/scripts/python/check_prerequisites.py --json --paths-only 2>&1
+ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml"
+```
+
+```text
+{"REPO_ROOT":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system","BRANCH":"002-list-comments","FEATURE_DIR":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments","FEATURE_SPEC":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md","IMPL_PLAN":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/plan.md","TASKS":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/tasks.md"}
+NO extensions.yml
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:55:55Z)**_
+
+Resolved to feature `002-list-comments`, no hooks. Spec's `FR-002`/Key Entities imply timestamp exists but never state it's part of the *displayed* list output — genuine gap, matching your question exactly.
+
+**Question:** Should each comment in the list display its timestamp alongside its content?
+
+Why it matters: FR-002 orders comments by timestamp internally, but the spec never says the timestamp itself is part of what the agent actually sees per comment — this decides the output shape and its acceptance tests.
+
+**Recommended:** Option A - a comment without a visible timestamp is far less useful for tracking "what happened when" on a ticket, and 001-ticket-management-backend's `Comment` entity already carries `createdAt`, so surfacing it costs nothing extra.
+
+| Option | Description |
+|--------|-------------|
+| A | Yes — each listed comment shows its content and its timestamp |
+| B | No — only comment content is shown; timestamp stays internal (used only for ordering) |
+| Short | Something else (<=5 words) |
+
+Reply with option letter, "yes" to accept recommendation, or short answer.
+
+---
+
+_**User (2026-09-21 07:56:16Z)**_
+
+A
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:20Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Locate insertion points in spec.md
+
+`grep -n "^#\|FR-00\|Acceptance Scenarios\|Key Entities" specs/002-list-comments/spec.md`
+
+```text
+1:# Feature Specification: List Comments
+11:## User Scenarios & Testing *(mandatory)*
+13:### User Story 1 - Browse a Ticket's Comment History (Priority: P1)
+28:**Acceptance Scenarios**:
+43:### Edge Cases
+53:## Requirements *(mandatory)*
+55:### Functional Requirements
+57:- **FR-001**: System MUST allow retrieval of the list of comments belonging to a specific
+59:- **FR-002**: System MUST return a ticket's comments ordered from oldest to newest.
+60:- **FR-003**: System MUST return an empty list, not an error, when the ticket has no comments.
+61:- **FR-004**: System MUST reject a comment-list request for a ticket identifier that does not
+63:- **FR-005**: System MUST page comment results so that retrieval time does not grow unbounded as
+66:### Key Entities
+72:## Success Criteria *(mandatory)*
+74:### Measurable Outcomes
+83:## Assumptions
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:23Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./specs/002-list-comments/spec.md`
+
+```text
+1	# Feature Specification: List Comments
+2	
+3	**Feature Branch**: `002-list-comments`
+4	
+5	**Created**: 2026-09-21
+6	
+7	**Status**: Draft
+8	
+9	**Input**: User description: "Please add the listing of comments in the scope of the application."
+10	
+11	## User Scenarios & Testing *(mandatory)*
+12	
+13	### User Story 1 - Browse a Ticket's Comment History (Priority: P1)
+14	
+15	A support agent opens a ticket and wants to review its full comment history — every note
+16	added over the ticket's lifetime, in the order it was written — as its own retrievable list,
+17	independent of the rest of the ticket's fields.
+18	
+19	**Why this priority**: Comments are the primary record of what happened on a ticket. Without an
+20	explicit way to list them, that history is only ever a side-effect of fetching everything else
+21	about the ticket, which does not scale as comment volume grows and cannot be paged, sorted, or
+22	requested on its own.
+23	
+24	**Independent Test**: Can be fully tested by adding several comments to a ticket, then requesting
+25	that ticket's comment list on its own (without requesting the rest of the ticket record) and
+26	confirming every comment appears, in the order it was added.
+27	
+28	**Acceptance Scenarios**:
+29	
+30	1. **Given** a ticket with several comments, **When** a support agent requests that ticket's
+31	   comment list, **Then** every comment is returned, ordered from oldest to newest.
+32	2. **Given** a ticket with no comments yet, **When** a support agent requests that ticket's
+33	   comment list, **Then** an empty list is returned (not an error).
+34	3. **Given** a ticket with a very large number of comments, **When** a support agent requests
+35	   that ticket's comment list, **Then** the results are returned in manageable pages rather than
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:25Z)**_
+
+Now integrating: add `## Clarifications`, update FR-001, Acceptance Scenario 1, and Key Entities.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:27Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:31Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:34Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./specs/002-list-comments/spec.md`
+
+```text
+58	  is not required to freeze the list for the duration of paging.
+59	
+60	## Requirements *(mandatory)*
+61	
+62	### Functional Requirements
+63	
+64	- **FR-001**: System MUST allow retrieval of the list of comments belonging to a specific
+65	  ticket, as its own request, independent of retrieving the ticket's other fields.
+66	- **FR-002**: System MUST return a ticket's comments ordered from oldest to newest.
+67	- **FR-003**: System MUST return an empty list, not an error, when the ticket has no comments.
+68	- **FR-004**: System MUST reject a comment-list request for a ticket identifier that does not
+69	  exist, with a specific "not found" error, rather than an empty list.
+70	- **FR-005**: System MUST page comment results so that retrieval time does not grow unbounded as
+71	  a ticket accumulates more comments.
+72	
+73	### Key Entities
+74
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:39Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:42Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./specs/002-list-comments/spec.md`
+
+```text
+75	### Key Entities
+76	
+77	- **Comment**: A timestamped note belonging to exactly one ticket (defined in the
+78	  001-ticket-management-backend feature). This feature adds a way to retrieve a ticket's
+79	  comments as their own list; it does not change what a comment is or how one is created.
+80	
+81	## Success Criteria *(mandatory)*
+82
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:46Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:48Z)**_
+
+Now re-validate checklist (no state changes expected — was already 16/16) and do a final consistency check.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:50Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Final validation of spec and checklist state
+
+```bash
+grep -n "NEEDS CLARIFICATION" specs/002-list-comments/spec.md || echo "none remain"
+grep -c "^- \[x\]" specs/002-list-comments/checklists/requirements.md
+grep -c "^- \[ \]" specs/002-list-comments/checklists/requirements.md
+```
+
+```text
+none remain
+16
+0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:56:54Z)**_
+
+Checklist: 16/16 unchanged, no regressions. No `.specify/extensions.yml` → hooks skipped.
+
+**Completion Report**
+
+- Questions asked & answered: 1 (comment timestamp visibility)
+- Updated spec: `specs/002-list-comments/spec.md`
+- Sections touched: `Clarifications` (new), Acceptance Scenario 1, `FR-002a` (new), `Key Entities`
+- Checklist: `16/16 → 16/16` — no regressions, no newly failing items
+
+Coverage summary:
+
+| Category | Status |
+|---|---|
+| Functional Scope & Behavior | Clear |
+| Domain & Data Model (comment display fields) | Resolved |
+| Ordering / pagination | Clear (FR-002, FR-005) |
+| Edge cases & failure handling | Clear |
+| Terminology consistency | Clear |
+| Completion signals / testability | Clear |
+| Non-functional (perf, security) | Clear — reuses 001's established conventions per Assumptions |
+
+No blocking gaps remain. Ready for `/speckit-plan`.
+
+---
+
+_**User (2026-09-21 07:57:46Z)**_
+
+<command-message>speckit-plan</command-message>
+<command-name>/speckit-plan</command-name>
+<command-args>plan for new changes in the spec regarding comment listing</command-args>
+
+---
+
+_**User (2026-09-21 07:57:46Z)**_
+
+Base directory for this skill: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/.claude/skills/speckit-plan
+
+## User Input
+
+```text
+plan for new changes in the spec regarding comment listing
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Pre-Execution Checks
+
+**Check for extension hooks (before planning)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_plan` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Outline
+
+1. **Setup**: Run `python3 .specify/scripts/python/setup_plan.py --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, FEATURE_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
+
+3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
+   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
+   - Fill Constitution Check section from constitution
+   - Evaluate gates (ERROR if violations unjustified)
+   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md
+   - Re-evaluate Constitution Check post-design
+
+## Mandatory Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
+
+Check if `.specify/extensions.yml` exists in the project root.
+- If it does not exist, or no hooks are registered under `hooks.after_plan`, skip to the Completion Report.
+- If it exists, read it and look for entries under the `hooks.after_plan` key.
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+
+## Completion Report
+
+Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated artifacts.
+
+## Phases
+
+### Phase 0: Outline & Research
+
+1. **Extract unknowns from Technical Context** above:
+   - For each NEEDS CLARIFICATION → research task
+   - For each dependency → best practices task
+   - For each integration → patterns task
+
+2. **Generate and dispatch research agents**:
+
+   ```text
+   For each unknown in Technical Context:
+     Task: "Research {unknown} for {feature context}"
+   For each technology choice:
+     Task: "Find best practices for {tech} in {domain}"
+   ```
+
+3. **Consolidate findings** in `research.md` using format:
+   - Decision: [what was chosen]
+   - Rationale: [why chosen]
+   - Alternatives considered: [what else evaluated]
+
+**Output**: research.md with all NEEDS CLARIFICATION resolved
+
+### Phase 1: Design & Contracts
+
+**Prerequisites:** `research.md` complete
+
+1. **Extract entities from feature spec** → `data-model.md`:
+   - Entity name, fields, relationships
+   - Validation rules from requirements
+   - State transitions if applicable
+
+2. **Define interface contracts** (if project has external interfaces) → `/contracts/`:
+   - Identify what interfaces the project exposes to users or other systems
+   - Document the contract format appropriate for the project type
+   - Examples: public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, UI contracts for applications
+   - Skip if project is purely internal (build scripts, one-off tools, etc.)
+
+3. **Create quickstart validation guide** → `quickstart.md`:
+   - Document runnable validation scenarios that prove the feature works end-to-end
+   - Include prerequisites, setup commands, test/run commands, and expected outcomes
+   - Use links or references to contracts and data model details instead of duplicating them
+   - Do not include full implementation code, model/service/controller bodies, migrations, or complete test suites
+   - Keep this artifact as a validation/run guide; implementation details belong in `tasks.md` and the implementation phase
+
+**Output**: data-model.md, /contracts/*, quickstart.md
+
+## Key rules
+
+- Use absolute paths for filesystem operations; use project-relative paths for references in documentation
+- ERROR on gate failures or unresolved clarifications
+
+## Done When
+
+- [ ] Plan workflow executed and design artifacts generated
+- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
+- [ ] Completion reported to user with branch, plan path, and generated artifacts
+
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 07:57:53Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Setup plan for 002-list-comments
+
+```bash
+python3 .specify/scripts/python/setup_plan.py --json 2>&1
+ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml"
+```
+
+```text
+Copied plan template to /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/plan.md
+{"FEATURE_SPEC":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/spec.md","IMPL_PLAN":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/plan.md","FEATURE_DIR":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments","BRANCH":"002-list-comments"}
+NO extensions.yml
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:29Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+````markdown
+# Implementation Plan: List Comments
+
+**Branch**: `002-list-comments` | **Date**: 2026-09-21 | **Spec**: [spec.md](./spec.md)
+
+**Input**: Feature specification from `/specs/002-list-comments/spec.md`
+
+## Summary
+
+Add a standalone, paginated way to retrieve a ticket's comment history —
+`GET /api/v1/tickets/{ticketId}/comments` — independent of fetching the rest of the ticket
+record. Each returned comment shows its content and timestamp (Clarifications session
+2026-09-21). This extends 001-ticket-management-backend: no new entity, no schema change beyond
+an added index for the sort this endpoint relies on at scale; it reuses the existing `Comment`
+entity, `CommentRepository`, `CommentService`, and `TicketCommentController` from that feature.
+
+## Technical Context
+
+**Language/Version**: Java 25 (LTS) — unchanged from 001, constitution-fixed.
+
+**Primary Dependencies**: Spring Boot 3.5.16 (Spring Web, Spring Data JPA, Spring Validation,
+Actuator), Flyway, springdoc-openapi — all already present in the codebase from
+001-ticket-management-backend; no new dependency required.
+
+**Storage**: PostgreSQL 16+, same `comments` table from 001. One additive migration: a composite
+index on `(ticket_id, created_at)` to back this endpoint's sort at the volumes SC-002 targets
+(the existing `idx_comments_ticket_id` index is single-column and does not cover the ordering).
+
+**Testing**: JUnit 5, Spring Boot Test, Testcontainers (PostgreSQL), AssertJ — same suite,
+extended with tests for the new endpoint.
+
+**Target Platform**: Same single Spring Boot microservice; no new deployable, no new service.
+
+**Project Type**: Backend extension to an existing web-service (not a new project).
+
+**Performance Goals**: Comment-list retrieval for a ticket with up to 1,000 comments in under 2
+seconds (spec SC-002) — same order of magnitude as 001's search target, met the same way
+(indexed query + pagination, not full-table scans).
+
+**Constraints**: Reuses constitution-mandated patterns already established in 001: list
+endpoints paginated (constitution Principle IV), one consistent `ApiError` shape for the
+not-found case (constitution Principle I), constructor injection only, single local
+`@Transactional(readOnly = true)` read (no SAGA — no cross-service call here). This plan closes
+a gap found during 001's implementation: every new endpoint MUST carry real
+`@Operation`/`@ApiResponse` OpenAPI annotations from the start, not added after the fact.
+
+**Scale/Scope**: One new read endpoint, one new DTO (`CommentPage`), one additive index
+migration. No new entities, no change to how comments are created (out of scope per spec
+Assumptions).
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+| Principle / Rule | Status | How this plan satisfies it |
+|---|---|---|
+| I. Contract-First API Design | PASS | New endpoint added to `contracts/comments-list-api.yaml` before controller code; reuses the existing `CommentResponse`/`ApiError` DTOs; annotated with `@Operation`/`@ApiResponse` from the first commit (closing 001's gap). |
+| II. Domain Invariants Enforced in Backend | N/A | This feature is read-only; it introduces no new state or transition. |
+| III. Test-First, State Machine Covered | PASS | Contract test for the new endpoint (200 paginated shape, 404 unknown ticket, empty-list case) and an ordering/pagination integration test are written before the implementation, per Phase 2 tasks. |
+| IV. PostgreSQL as Single Source of Truth | PASS | New Flyway migration `V2__comments_list_index.sql` adds the composite `(ticket_id, created_at)` index; `ddl-auto=validate` unchanged; the endpoint is paginated (`Pageable`), never returns an unbounded result set. |
+| V. Observability, Secrets Hygiene, Simplicity | PASS | Reuses existing structured logging and correlation-id filter; no new dependency, no cache, no new service — a paginated repository query is the simplest thing that satisfies SC-002 at the stated scale. |
+| Design Patterns: constructor injection | PASS | `CommentService`/`TicketCommentController` extended, not replaced; constructor injection unchanged. |
+| Design Patterns: atomicity / SAGA scope | PASS | Single local `@Transactional(readOnly = true)` read; no multi-service call, so SAGA does not apply. |
+
+No violations. Complexity Tracking is empty.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/002-list-comments/
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+├── contracts/
+│   └── comments-list-api.yaml
+└── checklists/
+    └── requirements.md
+```
+
+### Source Code (repository root — extends the existing 001 codebase, no new module)
+
+```text
+src/main/resources/db/migration/
+└── V2__comments_list_index.sql          # NEW
+
+src/main/java/com/frequency/ticketing/
+├── web/
+│   ├── dto/
+│   │   └── CommentPage.java             # NEW
+│   └── controller/
+│       └── TicketCommentController.java # EXTENDED: + GET /api/v1/tickets/{id}/comments
+├── domain/comment/
+│   └── CommentService.java              # EXTENDED: + listByTicket(ticketId, pageable)
+└── repository/
+    └── CommentRepository.java           # EXTENDED: + paginated finder
+
+src/test/java/com/frequency/ticketing/
+├── contract/
+│   └── CommentListContractTest.java     # NEW
+└── integration/
+    └── CommentListIntegrationTest.java  # NEW
+```
+
+**Structure Decision**: No new project or package — this is an additive slice inside the
+existing single microservice from 001-ticket-management-backend, following the same
+`web → domain → repository` layering already established there.
+
+## Complexity Tracking
+
+*No entries — no Constitution Check violation requires justification.*
+
+````
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/plan.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:31Z)**_
+
+Now Phase 0 research.md.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:45Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```markdown
+# Phase 0 Research: List Comments
+
+Technical Context has no unresolved `NEEDS CLARIFICATION` — this is a small additive slice onto
+an already-decided stack (constitution + 001-ticket-management-backend's own research.md). The
+only real decisions are scoped to this endpoint.
+
+## Endpoint shape: dedicated GET vs. extending ticket detail
+
+- **Decision**: A new, dedicated `GET /api/v1/tickets/{ticketId}/comments` endpoint, paginated,
+  separate from `GET /api/v1/tickets/{ticketId}`.
+- **Rationale**: Directly required by spec FR-001 ("as its own request, independent of
+  retrieving the ticket's other fields") and FR-005 (pagination). The existing ticket-detail
+  endpoint returns all comments inline and unpaginated — fine for a quick look, but it cannot
+  page and forces fetching the whole ticket just to browse comments.
+- **Alternatives considered**: Adding `page`/`size` query params to the existing ticket-detail
+  endpoint — rejected; conflates two different resources (a ticket, and a ticket's comments) in
+  one response shape, and the spec explicitly asks for comments to be requestable "on its own."
+
+## Query implementation
+
+- **Decision**: Add `Page<Comment> findByTicketIdOrderByCreatedAtAsc(UUID ticketId, Pageable
+  pageable)` to `CommentRepository` (a Spring Data derived query), backed by a new composite
+  index `(ticket_id, created_at)`.
+- **Rationale**: The existing `idx_comments_ticket_id` index (from 001) is single-column; a
+  query that filters by `ticket_id` AND sorts by `created_at` benefits from a composite index
+  covering both, keeping SC-002 (1,000 comments, <2s) comfortably met without introducing any
+  new query technology.
+- **Alternatives considered**: Reusing the existing unpaginated
+  `findByTicketIdOrderByCreatedAtAsc(UUID)` and paginating in memory — rejected; loads the full
+  comment set into memory before truncating it, defeating the purpose of pagination and
+  violating constitution Principle IV ("list endpoints MUST be paginated... MUST NOT return
+  unbounded result sets" — an in-memory slice of an unbounded fetch does not satisfy that).
+
+## Response shape
+
+- **Decision**: A `CommentPage` DTO — `{content: CommentResponse[], page, size, totalElements,
+  totalPages}` — mirroring `TicketPage` from 001 exactly, for consistency across the API.
+- **Rationale**: `CommentResponse` (from 001) already carries `id`, `ticketId`, `content`, and
+  `createdAt` — the timestamp the Clarifications session confirmed must be shown is already
+  present; no DTO field changes needed, only a paginated wrapper around a list of them.
+- **Alternatives considered**: A bare array response with `Link`/`X-Total-Count` headers for
+  pagination metadata — rejected; inconsistent with the header-free, body-based pagination
+  convention 001 already established for `TicketPage`, and the constitution favors one
+  consistent contract shape over introducing a second convention.
+
+## OpenAPI documentation
+
+- **Decision**: Annotate the new controller method with `@Operation`/`@ApiResponses`/`@Schema`
+  at the same time the endpoint is written, not as a follow-up.
+- **Rationale**: 001-ticket-management-backend shipped its controllers without these annotations
+  initially — a real gap between its own research.md decision ("generated from annotated
+  controllers") and what `tasks.md` actually specified — caught only after the fact. This plan
+  closes that gap up front instead of repeating it.
+
+## Outcome
+
+No unresolved `NEEDS CLARIFICATION` markers. Ready for Phase 1.
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/research.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:46Z)**_
+
+Now Phase 1: data-model.md, contracts, quickstart.md.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:55Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```markdown
+# Phase 1 Data Model: List Comments
+
+No new entity and no field changes. This feature adds a retrieval path onto the `Comment`
+entity already defined in `001-ticket-management-backend/data-model.md`.
+
+## Entity (unchanged, referenced for completeness)
+
+### Comment
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | UUID (PK) | Unchanged from 001. |
+| `ticketId` | UUID (FK → `tickets.id`) | Unchanged from 001. |
+| `content` | `TEXT` | Unchanged from 001. Now explicitly required to be shown in the list (FR-002a). |
+| `createdAt` | `TIMESTAMPTZ` | Unchanged from 001. Now explicitly required to be shown alongside content in the list (FR-002a, Clarifications session 2026-09-21). |
+
+## New response shape
+
+### CommentPage
+
+| Field | Type | Notes |
+|---|---|---|
+| `content` | `CommentResponse[]` | The page's comments, ordered oldest to newest (FR-002). Each item carries `id`, `ticketId`, `content`, `createdAt` — no new fields on `CommentResponse` itself, it already had all four (001). |
+| `page` | integer | Current page number, 0-indexed — same convention as `TicketPage` (001). |
+| `size` | integer | Page size in effect. |
+| `totalElements` | integer | Total comment count for the ticket. |
+| `totalPages` | integer | Total pages available. |
+
+## Persistence Notes
+
+- New Flyway migration `V2__comments_list_index.sql`: composite index `(ticket_id, created_at)`
+  on `comments`, additive to the schema created in 001's `V1__init_schema.sql`. No table
+  structure change, no data migration.
+- `ddl-auto=validate` unchanged (constitution Principle IV) — the new index is created only via
+  this migration, never inferred by Hibernate.
+
+## Validation / Error Rules Summary
+
+| Condition | Rule | Error code |
+|---|---|---|
+| Ticket id does not exist | Reject the list request | `TICKET_NOT_FOUND` (404) — same code/shape as 001, no new error type |
+| Ticket exists, has zero comments | Return `CommentPage` with `content: []`, `totalElements: 0` | Not an error (FR-003) |
+| `page`/`size` out of supported range | Clamp to a sane bound (same convention as `TicketPage` in 001: size clamped to [1, 100], default 20) | Not an error |
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/data-model.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:58:58Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Create contracts directory for 002
+
+`mkdir -p /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/contracts`
+
+```text
+(Bash completed with no output)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:06Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```yaml
+openapi: 3.0.3
+info:
+  title: List Comments API
+  version: "1.0"
+  description: >
+    Adds a standalone, paginated way to retrieve a ticket's comments (feature
+    002-list-comments), extending the tickets API from
+    001-ticket-management-backend/contracts/tickets-api.yaml. Reuses that contract's
+    CommentResponse and ApiError schemas unchanged.
+servers:
+  - url: /api/v1
+
+paths:
+  /tickets/{ticketId}/comments:
+    parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: List a ticket's comments (FR-001, FR-002, FR-005)
+      operationId: listComments
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: >
+            Page of comments for the ticket, ordered oldest to newest. content is [] when the
+            ticket has no comments (FR-003) — that is not an error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentPage' }
+        '404':
+          description: Ticket not found (FR-004)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+components:
+  schemas:
+    # Reused verbatim from 001-ticket-management-backend/contracts/tickets-api.yaml
+    CommentResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_FAILED, TICKET_NOT_FOUND, INVALID_TRANSITION, TICKET_CONFLICT]
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+        path: { type: string }
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    # New in this feature
+    CommentPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/CommentResponse' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+        totalPages: { type: integer }
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/contracts/comments-list-api.yaml (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:08Z)**_
+
+Now quickstart.md.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:17Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+````markdown
+# Quickstart: List Comments
+
+Validates this feature end-to-end against
+[`contracts/comments-list-api.yaml`](./contracts/comments-list-api.yaml). Builds on
+001-ticket-management-backend's quickstart — same running application, same database, no new
+setup steps. Not a substitute for the automated test suite (constitution Principle III).
+
+## Prerequisites
+
+Application running per
+[`001-ticket-management-backend/quickstart.md`](../001-ticket-management-backend/quickstart.md)
+steps 1–2 (PostgreSQL up, `./mvnw spring-boot:run`, migrations applied — including this
+feature's `V2__comments_list_index.sql`).
+
+## 1. Create a ticket and add a few comments
+
+```bash
+TICKET_ID=$(curl -s -X POST localhost:8080/api/v1/tickets \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Comment listing demo","description":"desc","priority":"LOW"}' \
+  | jq -r '.id')
+
+curl -s -X POST localhost:8080/api/v1/tickets/$TICKET_ID/comments \
+  -H 'Content-Type: application/json' -d '{"content":"first"}'
+curl -s -X POST localhost:8080/api/v1/tickets/$TICKET_ID/comments \
+  -H 'Content-Type: application/json' -d '{"content":"second"}'
+curl -s -X POST localhost:8080/api/v1/tickets/$TICKET_ID/comments \
+  -H 'Content-Type: application/json' -d '{"content":"third"}'
+```
+
+## 2. List the ticket's comments on their own (FR-001)
+
+```bash
+curl -s localhost:8080/api/v1/tickets/$TICKET_ID/comments | jq
+```
+
+Expect: `200`, `content` has 3 entries ordered `first, second, third` (FR-002), each with
+`content` and `createdAt` populated (FR-002a), plus `page`/`size`/`totalElements`/`totalPages`.
+
+## 3. Empty list is not an error (FR-003)
+
+```bash
+EMPTY_TICKET_ID=$(curl -s -X POST localhost:8080/api/v1/tickets \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"No comments yet","description":"desc","priority":"LOW"}' \
+  | jq -r '.id')
+
+curl -s localhost:8080/api/v1/tickets/$EMPTY_TICKET_ID/comments | jq
+```
+
+Expect: `200`, `content: []`, `totalElements: 0`.
+
+## 4. Unknown ticket is rejected (FR-004)
+
+```bash
+curl -s -o /dev/stderr -w '%{http_code}\n' \
+  localhost:8080/api/v1/tickets/00000000-0000-0000-0000-000000000000/comments
+```
+
+Expect: `404`, body `code: TICKET_NOT_FOUND`.
+
+## 5. Pagination (FR-005)
+
+```bash
+curl -s "localhost:8080/api/v1/tickets/$TICKET_ID/comments?page=0&size=2" | jq '.content | length'
+curl -s "localhost:8080/api/v1/tickets/$TICKET_ID/comments?page=1&size=2" | jq '.content | length'
+```
+
+Expect: page 0 returns 2 comments, page 1 returns the remaining 1.
+
+## 6. Run the automated suite
+
+```bash
+./mvnw test
+```
+
+Expect `CommentListContractTest` and `CommentListIntegrationTest` green alongside the full
+001 suite (constitution Principle III — this is the authoritative proof, not this manual guide).
+
+````
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/quickstart.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:19Z)**_
+
+Post-design Constitution Check re-evaluation: no new violations — no new entity, no new dependency, pagination and error shape reuse 001's established conventions, OpenAPI annotations planned upfront this time. Gate still PASS.
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:21Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+List generated plan artifacts for 002
+
+`ls -la /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/ /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/contracts/`
+
+```text
+/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/:
+total 44
+drwxrwxr-x 4 tahir-hussain tahir-hussain 4096 Sep 21 13:29 .
+drwxrwxr-x 4 tahir-hussain tahir-hussain 4096 Sep 21 13:20 ..
+drwxrwxr-x 2 tahir-hussain tahir-hussain 4096 Sep 21 13:20 checklists
+drwxrwxr-x 2 tahir-hussain tahir-hussain 4096 Sep 21 13:29 contracts
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 2144 Sep 21 13:28 data-model.md
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 5936 Sep 21 13:28 plan.md
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 2736 Sep 21 13:29 quickstart.md
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 3532 Sep 21 13:28 research.md
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 5087 Sep 21 13:26 spec.md
+
+/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/contracts/:
+total 12
+drwxrwxr-x 2 tahir-hussain tahir-hussain 4096 Sep 21 13:29 .
+drwxrwxr-x 4 tahir-hussain tahir-hussain 4096 Sep 21 13:29 ..
+-rw-rw-r-- 1 tahir-hussain tahir-hussain 2614 Sep 21 13:29 comments-list-api.yaml
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 07:59:26Z)**_
+
+No `.specify/extensions.yml` → post-execution hooks skipped.
+
+**Completion Report**
+
+- **Branch**: `002-list-comments`
+- **IMPL_PLAN**: `specs/002-list-comments/plan.md`
+- **Artifacts generated**:
+  - `plan.md` — Technical Context, Constitution Check (all PASS, zero violations), no new project/dependency — additive slice onto 001's existing codebase
+  - `research.md` — 4 decisions: dedicated paginated endpoint (not folded into ticket-detail), paginated repository query + composite index (not in-memory paging), `CommentPage` mirroring `TicketPage`, and OpenAPI annotations written upfront this time (explicitly closing the gap you caught in 001)
+  - `data-model.md` — no new entity; documents the new `CommentPage` response shape and the additive `V2__comments_list_index.sql` migration
+  - `contracts/comments-list-api.yaml` — `GET /api/v1/tickets/{ticketId}/comments`, reusing 001's `CommentResponse`/`ApiError` schemas unchanged
+  - `quickstart.md` — 6-step curl walkthrough (list, empty-list, 404, pagination) built on top of 001's running app
+
+No `NEEDS CLARIFICATION` markers remain. Ready for `/speckit-tasks`.
+
+---
+
+_**User (2026-09-21 08:00:11Z)**_
+
+<command-message>speckit-tasks</command-message>
+<command-name>/speckit-tasks</command-name>
+
+---
+
+_**User (2026-09-21 08:00:11Z)**_
+
+Base directory for this skill: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/.claude/skills/speckit-tasks
+
+## User Input
+
+```text
+
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Pre-Execution Checks
+
+**Check for extension hooks (before tasks generation)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_tasks` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Outline
+
+1. **Setup**: Run `python3 .specify/scripts/python/setup_tasks.py --json` from repo root and parse FEATURE_DIR, TASKS_TEMPLATE_CONTENT, TASKS_TEMPLATE, and AVAILABLE_DOCS list. `FEATURE_DIR` and `TASKS_TEMPLATE` must be absolute paths when provided. `AVAILABLE_DOCS` is a list of document names/relative paths available under `FEATURE_DIR` (for example `research.md` or `contracts/`). For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+2. **Load design documents**: Read from FEATURE_DIR:
+   - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
+   - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
+   - **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints
+   - Note: Not all projects have all documents. Generate tasks based on what's available.
+
+3. **Execute task generation workflow**:
+   - Load plan.md and extract tech stack, libraries, project structure
+   - Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)
+   - If data-model.md exists: Extract entities and map to user stories
+   - If contracts/ exists: Map interface contracts to user stories
+   - If research.md exists: Extract decisions for setup tasks
+   - Generate tasks organized by user story (see Task Generation Rules below)
+   - Generate dependency graph showing user story completion order
+   - Create parallel execution examples per user story
+   - Validate task completeness (each user story has all needed tasks, independently testable)
+
+4. **Generate tasks.md**: Use TASKS_TEMPLATE_CONTENT (from the JSON output above) as the structure. For compatibility with older setup scripts that omit TASKS_TEMPLATE_CONTENT, read TASKS_TEMPLATE instead. Fill with:
+   - Correct feature name from plan.md
+   - Phase 1: Setup tasks (project initialization)
+   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
+   - Phase 3+: One phase per user story (in priority order from spec.md)
+   - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
+   - Final Phase: Polish & cross-cutting concerns
+   - All tasks must follow the strict checklist format (see Task Generation Rules below)
+   - Clear file paths for each task
+   - Dependencies section showing story completion order
+   - Parallel execution examples per story
+   - Implementation strategy section (MVP first, incremental delivery)
+
+## Mandatory Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
+
+Check if `.specify/extensions.yml` exists in the project root.
+- If it does not exist, or no hooks are registered under `hooks.after_tasks`, skip to the Completion Report.
+- If it exists, read it and look for entries under the `hooks.after_tasks` key.
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+
+## Completion Report
+
+Output path to generated tasks.md and summary:
+- Total task count
+- Task count per user story
+- Parallel opportunities identified
+- Independent test criteria for each story
+- Suggested MVP scope (typically just User Story 1)
+- Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
+
+Context for task generation: 
+
+The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
+
+## Task Generation Rules
+
+**CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
+
+**Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature specification or if user requests TDD approach.
+
+### Checklist Format (REQUIRED)
+
+Every task MUST strictly follow this format:
+
+```text
+- [ ] [TaskID] [P?] [Story?] Description with file path
+```
+
+**Format Components**:
+
+1. **Checkbox**: ALWAYS start with `- [ ]` (markdown checkbox)
+2. **Task ID**: Sequential number (T001, T002, T003...) in execution order
+3. **[P] marker**: Include ONLY if task is parallelizable (different files, no dependencies on incomplete tasks)
+4. **[Story] label**: REQUIRED for user story phase tasks only
+   - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
+   - Setup phase: NO story label
+   - Foundational phase: NO story label
+   - User Story phases: MUST have story label
+   - Polish phase: NO story label
+5. **Description**: Clear action with exact file path
+
+**Examples**:
+
+- ✅ CORRECT: `- [ ] T001 Create project structure per implementation plan`
+- ✅ CORRECT: `- [ ] T005 [P] Implement authentication middleware in src/middleware/auth.py`
+- ✅ CORRECT: `- [ ] T012 [P] [US1] Create User model in src/models/user.py`
+- ✅ CORRECT: `- [ ] T014 [US1] Implement UserService in src/services/user_service.py`
+- ❌ WRONG: `- [ ] Create User model` (missing ID and Story label)
+- ❌ WRONG: `T001 [US1] Create model` (missing checkbox)
+- ❌ WRONG: `- [ ] [US1] Create User model` (missing Task ID)
+- ❌ WRONG: `- [ ] T001 [US1] Create model` (missing file path)
+
+### Task Organization
+
+1. **From User Stories (spec.md)** - PRIMARY ORGANIZATION:
+   - Each user story (P1, P2, P3...) gets its own phase
+   - Map all related components to their story:
+     - Models needed for that story
+     - Services needed for that story
+     - Interfaces/UI needed for that story
+     - If tests requested: Tests specific to that story
+   - Mark story dependencies (most stories should be independent)
+
+2. **From Contracts**:
+   - Map each interface contract → to the user story it serves
+   - If tests requested: Each interface contract → contract test task [P] before implementation in that story's phase
+
+3. **From Data Model**:
+   - Map each entity to the user story(ies) that need it
+   - If entity serves multiple stories: Put in earliest story or Setup phase
+   - Relationships → service layer tasks in appropriate story phase
+   - For each field with constraints in data-model.md (max length, nullable/required, enum values, validation rules), quote the constraint verbatim in the task description so it is not left to implementation-time discretion
+
+4. **From Setup/Infrastructure**:
+   - Shared infrastructure → Setup phase (Phase 1)
+   - Foundational/blocking tasks → Foundational phase (Phase 2)
+   - Story-specific setup → within that story's phase
+
+### Phase Structure
+
+- **Phase 1**: Setup (project initialization)
+- **Phase 2**: Foundational (blocking prerequisites - MUST complete before user stories)
+- **Phase 3+**: User Stories in priority order (P1, P2, P3...)
+  - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
+  - Each phase should be a complete, independently testable increment
+- **Final Phase**: Polish & Cross-Cutting Concerns
+
+## Done When
+
+- [ ] tasks.md generated with all phases, task IDs, and file paths
+- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
+- [ ] Completion reported to user with task count, story breakdown, and MVP scope
+
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 08:00:56Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Setup tasks context for 002
+
+```bash
+python3 .specify/scripts/python/setup_tasks.py --json 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['FEATURE_DIR']); print(d.get('AVAILABLE_DOCS'))"
+ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml"
+grep -c '\[x\]' specs/002-list-comments/checklists/requirements.md
+```
+
+```text
+/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments
+['research.md', 'data-model.md', 'contracts/', 'quickstart.md']
+NO extensions.yml
+16
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:00:58Z)**_
+
+All docs present, no hooks. Writing `tasks.md`.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:01:24Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+````markdown
+# Tasks: List Comments
+
+**Input**: Design documents from `/specs/002-list-comments/`
+
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/comments-list-api.yaml,
+quickstart.md, `.specify/memory/constitution.md`, and the already-implemented
+001-ticket-management-backend codebase this feature extends.
+
+**Tests**: Constitution Principle III (Test-First) is NON-NEGOTIABLE — test tasks below are
+REQUIRED and MUST be written and failing before their corresponding implementation task.
+
+**Organization**: This feature has a single user story (spec.md P1). Foundational work is the
+shared DB index and response DTO; everything else lives in that one story's phase.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependency on an incomplete task)
+- **[Story]**: US1 — maps to spec.md's single user story
+- All paths under `src/main/java/com/frequency/ticketing/` and
+  `src/test/java/com/frequency/ticketing/` (the existing 001 codebase)
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization.
+
+No new setup required — this feature extends the existing 001-ticket-management-backend
+project unchanged (same `pom.xml`, same Spring Boot/Java version, no new dependency, same
+`application.yml`). Proceed directly to Foundational.
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: The shared index and response shape every part of this feature needs.
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete.
+
+- [ ] T001 Create Flyway migration
+      `src/main/resources/db/migration/V2__comments_list_index.sql`: additive composite index
+      `(ticket_id, created_at)` on the existing `comments` table — no table structure change, no
+      data migration (data-model.md Persistence Notes; research.md Query implementation
+      decision)
+- [ ] T002 [P] Create `CommentPage` DTO in
+      `src/main/java/com/frequency/ticketing/web/dto/CommentPage.java`: fields `content`
+      (`List<CommentResponse>`), `page`, `size`, `totalElements`, `totalPages`, plus a static
+      `from(Page<CommentResponse>)` factory — mirrors `TicketPage` exactly (data-model.md
+      CommentPage table; research.md Response shape decision)
+
+**Checkpoint**: Migration applies cleanly; `CommentPage` compiles. User story work can begin.
+
+---
+
+## Phase 3: User Story 1 - Browse a Ticket's Comment History (Priority: P1) 🎯 MVP
+
+**Goal**: Retrieve a ticket's comments as their own paginated, ordered list — independent of
+fetching the rest of the ticket — with each comment showing its content and timestamp.
+
+**Independent Test**: Add several comments to a ticket, request its comment list on its own
+(not via ticket detail), and confirm every comment appears in order with content and timestamp
+populated; confirm an empty ticket returns `[]` not an error, and an unknown ticket returns 404.
+
+### Tests for User Story 1 ⚠️ (write first, confirm failing, per constitution Principle III)
+
+- [ ] T003 [P] [US1] Contract test `GET /api/v1/tickets/{ticketId}/comments` (200 `CommentPage`
+      shape with `content`/`createdAt` on every item per contracts/comments-list-api.yaml; 404
+      `TICKET_NOT_FOUND` `ApiError` for an unknown ticket id — FR-004) in
+      `src/test/java/com/frequency/ticketing/contract/CommentListContractTest.java`
+- [ ] T004 [US1] Integration test (Testcontainers PostgreSQL): add 3 comments to a ticket and
+      list them, asserting oldest-to-newest order with `content` and `createdAt` populated for
+      each (FR-002, FR-002a); a ticket with zero comments returns `content: []` and
+      `totalElements: 0`, not an error (FR-003); a ticket with more comments than one page
+      returns the correct subset and counts for `page=0` and `page=1` (FR-005) in
+      `src/test/java/com/frequency/ticketing/integration/CommentListIntegrationTest.java`
+
+### Implementation for User Story 1
+
+- [ ] T005 [US1] Add a paginated finder to `CommentRepository`:
+      `Page<Comment> findByTicketIdOrderByCreatedAtAsc(UUID ticketId, Pageable pageable)`, backed
+      by the T001 composite index, in
+      `src/main/java/com/frequency/ticketing/repository/CommentRepository.java` (depends on T001)
+- [ ] T006 [US1] Extend `CommentService` with
+      `listByTicket(UUID ticketId, Pageable pageable)`: verifies the ticket exists (else
+      `TicketNotFoundException`, FR-004), delegates to T005's finder, maps results to
+      `CommentPage` via `CommentMapper`/`CommentPage.from`; single
+      `@Transactional(readOnly = true)` unit of work (constitution Design Patterns: Atomicity —
+      no cross-service call, so SAGA does not apply); constructor injection only, in
+      `src/main/java/com/frequency/ticketing/domain/comment/CommentService.java` (depends on
+      T002, T005)
+- [ ] T007 [US1] Add `GET /api/v1/tickets/{ticketId}/comments` to `TicketCommentController`:
+      accepts `page`/`size` query params (default size 20, max 100 — same clamping convention as
+      `TicketController`), delegates to T006, and is annotated with
+      `@Operation`/`@ApiResponses`/`@Schema` matching contracts/comments-list-api.yaml exactly
+      (constitution Principle I — written now, not retrofitted, per research.md's OpenAPI
+      documentation decision) in
+      `src/main/java/com/frequency/ticketing/web/controller/TicketCommentController.java`
+      (depends on T006)
+
+**Checkpoint**: User Story 1 fully functional and independently testable — run T003-T004, both
+green.
+
+---
+
+## Phase 4: Polish & Cross-Cutting Concerns
+
+**Purpose**: Quality gates from constitution Development Workflow & Quality Gates.
+
+- [ ] T008 [P] Unit test for `CommentPage.from` (page/size/totalElements/totalPages mapped
+      correctly from a Spring `Page`) in
+      `src/test/java/com/frequency/ticketing/unit/CommentPageTest.java`
+- [ ] T009 [P] Grep-verify no `@Autowired` field injection was introduced by this feature's new
+      or edited files (constitution Design Patterns: constructor injection only) — re-run the
+      same check as 001-ticket-management-backend T055
+- [ ] T010 Run `quickstart.md` end-to-end against a local build and record results
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: Nothing to do — proceed directly to Foundational
+- **Foundational (Phase 2)**: T001, T002 — BLOCKS User Story 1
+- **User Story 1 (Phase 3)**: Depends on Foundational only; reuses `Comment` (entity),
+  `CommentRepository`, `CommentService`, `TicketCommentController`, and `CommentMapper` from
+  001-ticket-management-backend
+- **Polish (Phase 4)**: Depends on User Story 1 being complete
+
+### Within User Story 1
+
+- Tests (T003, T004) MUST be written and failing before T005-T007 (constitution Principle III)
+- Repository (T005) before service (T006) before controller (T007)
+
+### Parallel Opportunities
+
+- Foundational: T001, T002 in parallel (different files)
+- User Story 1 tests: T003 in parallel with T004 (different files)
+- Polish: T008, T009 in parallel
+
+---
+
+## Parallel Example: Foundational + User Story 1 tests
+
+```bash
+# Foundational, launched together:
+Task: "Create V2__comments_list_index.sql in src/main/resources/db/migration/"
+Task: "Create CommentPage DTO in src/main/java/.../web/dto/CommentPage.java"
+
+# User Story 1 tests, launched together (after Foundational):
+Task: "Contract test GET /api/v1/tickets/{ticketId}/comments in src/test/java/.../contract/CommentListContractTest.java"
+Task: "Integration test comment ordering/empty/pagination in src/test/java/.../integration/CommentListIntegrationTest.java"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (and only)
+
+1. Complete Phase 2: Foundational
+2. Complete Phase 3: User Story 1 — this is the whole feature
+3. **STOP and VALIDATE**: run T003-T004 green, then `quickstart.md`
+4. Complete Phase 4: Polish
+
+### Task Count Summary
+
+- Phase 1 (Setup): 0 tasks — nothing new to set up
+- Phase 2 (Foundational): 2 tasks
+- Phase 3 (User Story 1): 5 tasks (2 tests + 3 implementation)
+- Phase 4 (Polish): 3 tasks
+- **Total: 10 tasks (T001-T010)**
+
+---
+
+## Notes
+
+- [P] tasks touch different files with no unmet dependency
+- Every constraint quoted from data-model.md is binding — do not relax at implementation time
+- Verify each test fails before writing its implementation (constitution Principle III)
+- Commit after each task or logical group
+- This feature reuses 001-ticket-management-backend's `Comment` entity, `CommentMapper`, and
+  `AbstractIntegrationTest` test base unchanged — no duplication, only extension
+
+````
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments/tasks.md (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:01:25Z)**_
+
+Validating format compliance.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:01:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Validate task format and numbering
+
+```bash
+grep -c '^- \[ \]' specs/002-list-comments/tasks.md
+grep -cE '^- \[ \] T[0-9]{3}( \[P\])?( \[US[0-9]\])? .+' specs/002-list-comments/tasks.md
+grep -oE '^- \[ \] T[0-9]{3}' specs/002-list-comments/tasks.md | sed 's/.*T//' | awk 'BEGIN{p=0}{if($1!=p+1)print "GAP at "$1" after "p; p=$1} END{print "last="p}'
+```
+
+```text
+10
+10
+last=010
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:01:33Z)**_
+
+No `.specify/extensions.yml` → post-execution hooks skipped.
+
+**Completion Report**
+
+- **Path**: `specs/002-list-comments/tasks.md`
+- **Total tasks**: 10 (T001–T010), 10/10 match checklist format
+
+| Phase | Tasks | Notes |
+|---|---|---|
+| 1 Setup | 0 | Nothing new — extends 001's existing project unchanged |
+| 2 Foundational | 2 | Composite DB index, `CommentPage` DTO |
+| 3 US1 (P1) 🎯 MVP | 5 | 2 tests + 3 impl — the whole feature |
+| 4 Polish | 3 | `CommentPage.from` unit test, `@Autowired` grep-check, quickstart run |
+
+Single user story — MVP scope is the entire feature (T001–T007).
+
+Parallel opportunities: T001/T002 (foundational); T003/T004 (tests); T008/T009 (polish).
+
+Independent test: add comments to a ticket, list them standalone, confirm order + timestamps; confirm empty-ticket and unknown-ticket cases.
+
+Ready for `/speckit-implement`.
+
+---
+
+_**User (2026-09-21 08:02:49Z)**_
+
+run /speckit-implement
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 08:02:55Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check prerequisites, checklist, extensions, and DB availability
+
+```bash
+python3 .specify/scripts/python/check_prerequisites.py --json --require-tasks --include-tasks 2>&1
+ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml"
+grep -c '\[x\]\|\[X\]' specs/002-list-comments/checklists/requirements.md
+grep -c '\[ \]' specs/002-list-comments/checklists/requirements.md
+echo "---db still up?---"
+python3 -c "import socket; s=socket.socket(); print('5432 open' if s.connect_ex(('127.0.0.1',5432))==0 else '5432 closed')"
+```
+
+```text
+{"FEATURE_DIR":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments","AVAILABLE_DOCS":["research.md","data-model.md","contracts/","quickstart.md","tasks.md"]}
+NO extensions.yml
+16
+0
+---db still up?---
+5432 open
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:02:57Z)**_
+
+16/16 checklist pass, DB still reachable. Proceeding.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:00Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```sql
+-- Additive composite index backing GET /api/v1/tickets/{ticketId}/comments (feature
+-- 002-list-comments): a query that filters by ticket_id AND sorts by created_at benefits from
+-- a composite index covering both, keeping SC-002 (1,000 comments, <2s) comfortably met.
+CREATE INDEX idx_comments_ticket_id_created_at ON comments (ticket_id, created_at);
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/resources/db/migration/V2__comments_list_index.sql (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:03Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.web.dto;
+
+import java.util.List;
+import org.springframework.data.domain.Page;
+
+public record CommentPage(
+    List<CommentResponse> content, int page, int size, long totalElements, int totalPages) {
+
+  public static CommentPage from(Page<CommentResponse> page) {
+    return new CommentPage(
+        page.getContent(),
+        page.getNumber(),
+        page.getSize(),
+        page.getTotalElements(),
+        page.getTotalPages());
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/java/com/frequency/ticketing/web/dto/CommentPage.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:05Z)**_
+
+Phase 2 done. Now Phase 3 tests (T003, T004) — write first per TDD.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:13Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.contract;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.frequency.ticketing.domain.ticket.TicketPriority;
+import com.frequency.ticketing.support.AbstractIntegrationTest;
+import com.frequency.ticketing.web.dto.ApiError;
+import com.frequency.ticketing.web.dto.CommentCreateRequest;
+import com.frequency.ticketing.web.dto.CommentPage;
+import com.frequency.ticketing.web.dto.CommentResponse;
+import com.frequency.ticketing.web.dto.TicketCreateRequest;
+import com.frequency.ticketing.web.dto.TicketResponse;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+class CommentListContractTest extends AbstractIntegrationTest {
+
+  private UUID createTicket() {
+    return restTemplate
+        .postForEntity(
+            baseUrl("/tickets"),
+            new TicketCreateRequest("Comment list contract", "desc", TicketPriority.LOW, null),
+            TicketResponse.class)
+        .getBody()
+        .id();
+  }
+
+  @Test
+  void listCommentsReturns200WithPageShapeAndTimestamps() {
+    UUID ticketId = createTicket();
+    restTemplate.postForEntity(
+        baseUrl("/tickets/" + ticketId + "/comments"),
+        new CommentCreateRequest("first"),
+        CommentResponse.class);
+
+    ResponseEntity<CommentPage> response =
+        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId + "/comments"), CommentPage.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    CommentPage body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.content()).hasSize(1);
+    assertThat(body.content().get(0).content()).isEqualTo("first");
+    assertThat(body.content().get(0).createdAt()).isNotNull();
+    assertThat(body.totalElements()).isEqualTo(1);
+  }
+
+  @Test
+  void listCommentsForUnknownTicketReturns404NotFound() {
+    ResponseEntity<ApiError> response =
+        restTemplate.getForEntity(
+            baseUrl("/tickets/" + UUID.randomUUID() + "/comments"), ApiError.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().code()).isEqualTo(ApiError.Code.TICKET_NOT_FOUND.name());
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/test/java/com/frequency/ticketing/contract/CommentListContractTest.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:24Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.integration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.frequency.ticketing.domain.ticket.TicketPriority;
+import com.frequency.ticketing.support.AbstractIntegrationTest;
+import com.frequency.ticketing.web.dto.CommentCreateRequest;
+import com.frequency.ticketing.web.dto.CommentPage;
+import com.frequency.ticketing.web.dto.CommentResponse;
+import com.frequency.ticketing.web.dto.TicketCreateRequest;
+import com.frequency.ticketing.web.dto.TicketResponse;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Ordering + timestamps (FR-002, FR-002a), empty-list-not-error (FR-003), and pagination
+ * (FR-005) for the standalone comment-list endpoint.
+ */
+class CommentListIntegrationTest extends AbstractIntegrationTest {
+
+  private UUID createTicket(String title) {
+    return restTemplate
+        .postForEntity(
+            baseUrl("/tickets"),
+            new TicketCreateRequest(title, "desc", TicketPriority.LOW, null),
+            TicketResponse.class)
+        .getBody()
+        .id();
+  }
+
+  private void addComment(UUID ticketId, String content) {
+    restTemplate.postForEntity(
+        baseUrl("/tickets/" + ticketId + "/comments"),
+        new CommentCreateRequest(content),
+        CommentResponse.class);
+  }
+
+  @Test
+  void threeCommentsListedOldestToNewestWithContentAndTimestamp() {
+    UUID ticketId = createTicket("Ordering test");
+    addComment(ticketId, "first");
+    addComment(ticketId, "second");
+    addComment(ticketId, "third");
+
+    CommentPage page =
+        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId + "/comments"), CommentPage.class).getBody();
+
+    assertThat(page.content()).extracting(CommentResponse::content).containsExactly("first", "second", "third");
+    page.content().forEach(c -> assertThat(c.createdAt()).isNotNull());
+  }
+
+  @Test
+  void ticketWithNoCommentsReturnsEmptyListNotError() {
+    UUID ticketId = createTicket("No comments");
+
+    CommentPage page =
+        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId + "/comments"), CommentPage.class).getBody();
+
+    assertThat(page.content()).isEmpty();
+    assertThat(page.totalElements()).isZero();
+  }
+
+  @Test
+  void pagesThroughCommentsCorrectly() {
+    UUID ticketId = createTicket("Pagination test");
+    addComment(ticketId, "c1");
+    addComment(ticketId, "c2");
+    addComment(ticketId, "c3");
+
+    CommentPage firstPage =
+        restTemplate
+            .getForEntity(baseUrl("/tickets/" + ticketId + "/comments?page=0&size=2"), CommentPage.class)
+            .getBody();
+    CommentPage secondPage =
+        restTemplate
+            .getForEntity(baseUrl("/tickets/" + ticketId + "/comments?page=1&size=2"), CommentPage.class)
+            .getBody();
+
+    assertThat(firstPage.content()).hasSize(2);
+    assertThat(firstPage.totalElements()).isEqualTo(3);
+    assertThat(firstPage.totalPages()).isEqualTo(2);
+    assertThat(secondPage.content()).hasSize(1);
+    assertThat(secondPage.content().get(0).content()).isEqualTo("c3");
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/test/java/com/frequency/ticketing/integration/CommentListIntegrationTest.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:26Z)**_
+
+Confirming these fail (compile error) before implementing — proper TDD red state.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:36Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Confirm new tests compile (no new API needed to compile since GET uses same base URL pattern)
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw -q -DskipTests test-compile 2>&1 | grep -v "^WARNING"`
+
+```text
+(Bash completed with no output)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:40Z)**_
+
+Compiles clean (tests only hit URLs, no new Java API referenced) — red state will show at runtime instead. Confirming.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check port 8080 free before running tests that spin up app on random port
+
+```bash
+ps aux | grep -E "Ticketing|spring-boot" | grep -v grep || echo "no stray app"
+python3 -c "import socket; s=socket.socket(); print('8080 busy' if s.connect_ex(('127.0.0.1',8080))==0 else '8080 free')"
+```
+
+```text
+tahir-h+  669293  1.2  1.8 8901028 274800 ?      Sl   13:15   0:14 /usr/lib/jvm/java-25-openjdk-amd64/bin/java -XX:TieredStopAtLevel=1 -Dspring.output.ansi.enabled=always -javaagent:/home/tahir-hussain/.local/share/JetBrains/Toolbox/apps/intellij-idea/lib/idea_rt.jar=40021 -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -classpath /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/target/classes:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-web/3.5.16/spring-boot-starter-web-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter/3.5.16/spring-boot-starter-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot/3.5.16/spring-boot-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/3.5.16/spring-boot-autoconfigure-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-logging/3.5.16/spring-boot-starter-logging-3.5.16.jar:/home/tahir-hussain/.m2/repository/ch/qos/logback/logback-classic/1.5.34/logback-classic-1.5.34.jar:/home/tahir-hussain/.m2/repository/ch/qos/logback/logback-core/1.5.34/logback-core-1.5.34.jar:/home/tahir-hussain/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.24.3/log4j-to-slf4j-2.24.3.jar:/home/tahir-hussain/.m2/repository/org/apache/logging/log4j/log4j-api/2.24.3/log4j-api-2.24.3.jar:/home/tahir-hussain/.m2/repository/org/slf4j/jul-to-slf4j/2.0.18/jul-to-slf4j-2.0.18.jar:/home/tahir-hussain/.m2/repository/jakarta/annotation/jakarta.annotation-api/2.1.1/jakarta.annotation-api-2.1.1.jar:/home/tahir-hussain/.m2/repository/org/yaml/snakeyaml/2.4/snakeyaml-2.4.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-json/3.5.16/spring-boot-starter-json-3.5.16.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.21.4/jackson-datatype-jdk8-2.21.4.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/module/jackson-module-parameter-names/2.21.4/jackson-module-parameter-names-2.21.4.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-tomcat/3.5.16/spring-boot-starter-tomcat-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.55/tomcat-embed-core-10.1.55.jar:/home/tahir-hussain/.m2/repository/org/apache/tomcat/embed/tomcat-embed-websocket/10.1.55/tomcat-embed-websocket-10.1.55.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-web/6.2.19/spring-web-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-beans/6.2.19/spring-beans-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-webmvc/6.2.19/spring-webmvc-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-aop/6.2.19/spring-aop-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-context/6.2.19/spring-context-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-expression/6.2.19/spring-expression-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-data-jpa/3.5.16/spring-boot-starter-data-jpa-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-jdbc/3.5.16/spring-boot-starter-jdbc-3.5.16.jar:/home/tahir-hussain/.m2/repository/com/zaxxer/HikariCP/6.3.3/HikariCP-6.3.3.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-jdbc/6.2.19/spring-jdbc-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/hibernate/orm/hibernate-core/6.6.53.Final/hibernate-core-6.6.53.Final.jar:/home/tahir-hussain/.m2/repository/jakarta/persistence/jakarta.persistence-api/3.1.0/jakarta.persistence-api-3.1.0.jar:/home/tahir-hussain/.m2/repository/jakarta/transaction/jakarta.transaction-api/2.0.1/jakarta.transaction-api-2.0.1.jar:/home/tahir-hussain/.m2/repository/org/jboss/logging/jboss-logging/3.6.3.Final/jboss-logging-3.6.3.Final.jar:/home/tahir-hussain/.m2/repository/org/hibernate/common/hibernate-commons-annotations/7.0.3.Final/hibernate-commons-annotations-7.0.3.Final.jar:/home/tahir-hussain/.m2/repository/io/smallrye/jandex/3.2.0/jandex-3.2.0.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/classmate/1.7.3/classmate-1.7.3.jar:/home/tahir-hussain/.m2/repository/org/glassfish/jaxb/jaxb-runtime/4.0.9/jaxb-runtime-4.0.9.jar:/home/tahir-hussain/.m2/repository/org/glassfish/jaxb/jaxb-core/4.0.9/jaxb-core-4.0.9.jar:/home/tahir-hussain/.m2/repository/org/eclipse/angus/angus-activation/2.0.3/angus-activation-2.0.3.jar:/home/tahir-hussain/.m2/repository/org/glassfish/jaxb/txw2/4.0.9/txw2-4.0.9.jar:/home/tahir-hussain/.m2/repository/com/sun/istack/istack-commons-runtime/4.1.2/istack-commons-runtime-4.1.2.jar:/home/tahir-hussain/.m2/repository/jakarta/inject/jakarta.inject-api/2.0.1/jakarta.inject-api-2.0.1.jar:/home/tahir-hussain/.m2/repository/org/antlr/antlr4-runtime/4.13.2/antlr4-runtime-4.13.2.jar:/home/tahir-hussain/.m2/repository/org/springframework/data/spring-data-jpa/3.5.13/spring-data-jpa-3.5.13.jar:/home/tahir-hussain/.m2/repository/org/springframework/data/spring-data-commons/3.5.13/spring-data-commons-3.5.13.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-orm/6.2.19/spring-orm-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-tx/6.2.19/spring-tx-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-aspects/6.2.19/spring-aspects-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/aspectj/aspectjweaver/1.9.25.1/aspectjweaver-1.9.25.1.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-validation/3.5.16/spring-boot-starter-validation-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/apache/tomcat/embed/tomcat-embed-el/10.1.55/tomcat-embed-el-10.1.55.jar:/home/tahir-hussain/.m2/repository/org/hibernate/validator/hibernate-validator/8.0.3.Final/hibernate-validator-8.0.3.Final.jar:/home/tahir-hussain/.m2/repository/jakarta/validation/jakarta.validation-api/3.0.2/jakarta.validation-api-3.0.2.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-starter-actuator/3.5.16/spring-boot-starter-actuator-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-actuator-autoconfigure/3.5.16/spring-boot-actuator-autoconfigure-3.5.16.jar:/home/tahir-hussain/.m2/repository/org/springframework/boot/spring-boot-actuator/3.5.16/spring-boot-actuator-3.5.16.jar:/home/tahir-hussain/.m2/repository/io/micrometer/micrometer-observation/1.15.12/micrometer-observation-1.15.12.jar:/home/tahir-hussain/.m2/repository/io/micrometer/micrometer-commons/1.15.12/micrometer-commons-1.15.12.jar:/home/tahir-hussain/.m2/repository/io/micrometer/micrometer-jakarta9/1.15.12/micrometer-jakarta9-1.15.12.jar:/home/tahir-hussain/.m2/repository/io/micrometer/micrometer-core/1.15.12/micrometer-core-1.15.12.jar:/home/tahir-hussain/.m2/repository/org/hdrhistogram/HdrHistogram/2.2.2/HdrHistogram-2.2.2.jar:/home/tahir-hussain/.m2/repository/org/latencyutils/LatencyUtils/2.0.3/LatencyUtils-2.0.3.jar:/home/tahir-hussain/.m2/repository/net/logstash/logback/logstash-logback-encoder/8.0/logstash-logback-encoder-8.0.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar:/home/tahir-hussain/.m2/repository/org/postgresql/postgresql/42.7.11/postgresql-42.7.11.jar:/home/tahir-hussain/.m2/repository/org/flywaydb/flyway-core/11.7.2/flyway-core-11.7.2.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/dataformat/jackson-dataformat-toml/2.21.4/jackson-dataformat-toml-2.21.4.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.21.4/jackson-datatype-jsr310-2.21.4.jar:/home/tahir-hussain/.m2/repository/org/flywaydb/flyway-database-postgresql/11.7.2/flyway-database-postgresql-11.7.2.jar:/home/tahir-hussain/.m2/repository/org/springdoc/springdoc-openapi-starter-webmvc-ui/2.9.1/springdoc-openapi-starter-webmvc-ui-2.9.1.jar:/home/tahir-hussain/.m2/repository/org/springdoc/springdoc-openapi-starter-webmvc-api/2.9.1/springdoc-openapi-starter-webmvc-api-2.9.1.jar:/home/tahir-hussain/.m2/repository/org/springdoc/springdoc-openapi-starter-common/2.9.1/springdoc-openapi-starter-common-2.9.1.jar:/home/tahir-hussain/.m2/repository/org/apache/commons/commons-lang3/3.17.0/commons-lang3-3.17.0.jar:/home/tahir-hussain/.m2/repository/io/swagger/core/v3/swagger-core-jakarta/2.2.55/swagger-core-jakarta-2.2.55.jar:/home/tahir-hussain/.m2/repository/io/swagger/core/v3/swagger-annotations-jakarta/2.2.55/swagger-annotations-jakarta-2.2.55.jar:/home/tahir-hussain/.m2/repository/io/swagger/core/v3/swagger-models-jakarta/2.2.55/swagger-models-jakarta-2.2.55.jar:/home/tahir-hussain/.m2/repository/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.21.4/jackson-dataformat-yaml-2.21.4.jar:/home/tahir-hussain/.m2/repository/org/webjars/swagger-ui/5.32.14/swagger-ui-5.32.14.jar:/home/tahir-hussain/.m2/repository/org/webjars/webjars-locator-lite/1.1.3/webjars-locator-lite-1.1.3.jar:/home/tahir-hussain/.m2/repository/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar:/home/tahir-hussain/.m2/repository/jakarta/xml/bind/jakarta.xml.bind-api/4.0.5/jakarta.xml.bind-api-4.0.5.jar:/home/tahir-hussain/.m2/repository/jakarta/activation/jakarta.activation-api/2.1.4/jakarta.activation-api-2.1.4.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-core/6.2.19/spring-core-6.2.19.jar:/home/tahir-hussain/.m2/repository/org/springframework/spring-jcl/6.2.19/spring-jcl-6.2.19.jar:/home/tahir-hussain/.m2/repository/net/bytebuddy/byte-buddy/1.17.8/byte-buddy-1.17.8.jar com.frequency.ticketing.TicketingApplication
+8080 busy
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:03:59Z)**_
+
+The port-8080 process looks like the user's own IDE run (IntelliJ `idea_rt.jar` javaagent) — leaving it untouched, not killing it. Implementing T005–T007 now.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:00Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./src/main/java/com/frequency/ticketing/repository/CommentRepository.java`
+
+```text
+1	package com.frequency.ticketing.repository;
+2	
+3	import com.frequency.ticketing.domain.comment.Comment;
+4	import java.util.List;
+5	import java.util.UUID;
+6	import org.springframework.data.jpa.repository.JpaRepository;
+7	
+8	public interface CommentRepository extends JpaRepository<Comment, UUID> {
+9	
+10	  List<Comment> findByTicketIdOrderByCreatedAtAsc(UUID ticketId);
+11	}
+12
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:07Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/java/com/frequency/ticketing/repository/CommentRepository.java has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:10Z)**_
+
+Now T006: `CommentService.listByTicket`.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:11Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./src/main/java/com/frequency/ticketing/domain/comment/CommentService.java`
+
+```text
+1	package com.frequency.ticketing.domain.comment;
+2	
+3	import com.frequency.ticketing.domain.exception.TicketNotFoundException;
+4	import com.frequency.ticketing.repository.CommentRepository;
+5	import com.frequency.ticketing.repository.TicketRepository;
+6	import java.util.UUID;
+7	import org.springframework.stereotype.Service;
+8	import org.springframework.transaction.annotation.Transactional;
+9	
+10	/**
+11	 * Owns comment creation. One local {@code @Transactional} unit of work per operation
+12	 * (constitution Design Patterns: Atomicity — no cross-service call here, so SAGA does not apply).
+13	 */
+14	@Service
+15	public class CommentService {
+16	
+17	  private final CommentRepository commentRepository;
+18	  private final TicketRepository ticketRepository;
+19	
+20	  public CommentService(CommentRepository commentRepository, TicketRepository ticketRepository) {
+21	    this.commentRepository = commentRepository;
+22	    this.ticketRepository = ticketRepository;
+23	  }
+24	
+25	  @Transactional
+26	  public Comment addComment(UUID ticketId, String content) {
+27	    if (!ticketRepository.existsById(ticketId)) {
+28	      throw new TicketNotFoundException(ticketId);
+29	    }
+30	    return commentRepository.save(new Comment(ticketId, content));
+31	  }
+32	}
+33
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:18Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.domain.comment;
+
+import com.frequency.ticketing.domain.exception.TicketNotFoundException;
+import com.frequency.ticketing.repository.CommentRepository;
+import com.frequency.ticketing.repository.TicketRepository;
+import com.frequency.ticketing.web.dto.CommentMapper;
+import com.frequency.ticketing.web.dto.CommentPage;
+import java.util.UUID;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Owns comment creation and retrieval. One local {@code @Transactional} unit of work per
+ * operation (constitution Design Patterns: Atomicity — no cross-service call here, so SAGA does
+ * not apply).
+ */
+@Service
+public class CommentService {
+
+  private final CommentRepository commentRepository;
+  private final TicketRepository ticketRepository;
+
+  public CommentService(CommentRepository commentRepository, TicketRepository ticketRepository) {
+    this.commentRepository = commentRepository;
+    this.ticketRepository = ticketRepository;
+  }
+
+  @Transactional
+  public Comment addComment(UUID ticketId, String content) {
+    if (!ticketRepository.existsById(ticketId)) {
+      throw new TicketNotFoundException(ticketId);
+    }
+    return commentRepository.save(new Comment(ticketId, content));
+  }
+
+  /**
+   * Standalone, paginated comment listing for a ticket (feature 002-list-comments, FR-001,
+   * FR-005). Rejects with {@link TicketNotFoundException} if the ticket does not exist (FR-004).
+   */
+  @Transactional(readOnly = true)
+  public CommentPage listByTicket(UUID ticketId, Pageable pageable) {
+    if (!ticketRepository.existsById(ticketId)) {
+      throw new TicketNotFoundException(ticketId);
+    }
+    return CommentPage.from(
+        commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId, pageable).map(CommentMapper::toResponse));
+  }
+}
+
+```
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/java/com/frequency/ticketing/domain/comment/CommentService.java has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:20Z)**_
+
+Now T007: extend `TicketCommentController` with the GET endpoint + OpenAPI annotations.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:20Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./src/main/java/com/frequency/ticketing/web/controller/TicketCommentController.java`
+
+```text
+1	package com.frequency.ticketing.web.controller;
+2	
+3	import com.frequency.ticketing.domain.comment.Comment;
+4	import com.frequency.ticketing.domain.comment.CommentService;
+5	import com.frequency.ticketing.web.dto.ApiError;
+6	import com.frequency.ticketing.web.dto.CommentCreateRequest;
+7	import com.frequency.ticketing.web.dto.CommentMapper;
+8	import com.frequency.ticketing.web.dto.CommentResponse;
+9	import io.swagger.v3.oas.annotations.Operation;
+10	import io.swagger.v3.oas.annotations.media.Content;
+11	import io.swagger.v3.oas.annotations.media.Schema;
+12	import io.swagger.v3.oas.annotations.responses.ApiResponse;
+13	import io.swagger.v3.oas.annotations.responses.ApiResponses;
+14	import io.swagger.v3.oas.annotations.tags.Tag;
+15	import jakarta.validation.Valid;
+16	import java.util.UUID;
+17	import org.springframework.http.HttpStatus;
+18	import org.springframework.http.ResponseEntity;
+19	import org.springframework.web.bind.annotation.PathVariable;
+20	import org.springframework.web.bind.annotation.PostMapping;
+21	import org.springframework.web.bind.annotation.RequestBody;
+22	import org.springframework.web.bind.annotation.RequestMapping;
+23	import org.springframework.web.bind.annotation.RestController;
+24	
+25	/** Matches contracts/tickets-api.yaml exactly. Constructor injection only. */
+26	@RestController
+27	@RequestMapping("/api/v1/tickets/{ticketId}/comments")
+28	@Tag(name = "Ticket Comments", description = "Adding comments to a ticket (FR-005)")
+29	public class TicketCommentController {
+30	
+31	  private final CommentService commentService;
+32	
+33	  public TicketCommentController(CommentService commentService) {
+34	    this.commentService = commentService;
+35	  }
+36	
+37	  @PostMapping
+38	  @Operation(summary = "Add a comment", description = "Adds a timestamped comment to an existing ticket (FR-005).")
+39	  @ApiResponses({
+40	    @ApiResponse(
+41	        responseCode = "201",
+42	        description = "Comment created",
+43	        content = @Content(schema = @Schema(implementation = CommentResponse.class))),
+44	    @ApiResponse(
+45	        responseCode = "400",
+46	        description = "Validation failed (e.g. empty content)",
+47	        content = @Content(schema = @Schema(implementation = ApiError.class))),
+48	    @ApiResponse(
+49	        responseCode = "404",
+50	        description = "Ticket not found",
+51	        content = @Content(schema = @Schema(implementation = ApiError.class)))
+52	  })
+53	  public ResponseEntity<CommentResponse> addComment(
+54	      @PathVariable UUID ticketId, @Valid @RequestBody CommentCreateRequest request) {
+55	    Comment comment = commentService.addComment(ticketId, request.content());
+56	    return ResponseEntity.status(HttpStatus.CREATED).body(CommentMapper.toResponse(comment));
+57	  }
+58	}
+59
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:33Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.web.controller;
+
+import com.frequency.ticketing.domain.comment.Comment;
+import com.frequency.ticketing.domain.comment.CommentService;
+import com.frequency.ticketing.web.dto.ApiError;
+import com.frequency.ticketing.web.dto.CommentCreateRequest;
+import com.frequency.ticketing.web.dto.CommentMapper;
+import com.frequency.ticketing.web.dto.CommentPage;
+import com.frequency.ticketing.web.dto.CommentResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Matches contracts/tickets-api.yaml (001) and contracts/comments-list-api.yaml (002) exactly.
+ * Constructor injection only.
+ */
+@RestController
+@RequestMapping("/api/v1/tickets/{ticketId}/comments")
+@Tag(name = "Ticket Comments", description = "Adding and listing comments on a ticket (FR-005; 002-list-comments)")
+public class TicketCommentController {
+
+  private static final int DEFAULT_PAGE_SIZE = 20;
+  private static final int MAX_PAGE_SIZE = 100;
+
+  private final CommentService commentService;
+
+  public TicketCommentController(CommentService commentService) {
+    this.commentService = commentService;
+  }
+
+  @PostMapping
+  @Operation(summary = "Add a comment", description = "Adds a timestamped comment to an existing ticket (FR-005).")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "201",
+        description = "Comment created",
+        content = @Content(schema = @Schema(implementation = CommentResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Validation failed (e.g. empty content)",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Ticket not found",
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public ResponseEntity<CommentResponse> addComment(
+      @PathVariable UUID ticketId, @Valid @RequestBody CommentCreateRequest request) {
+    Comment comment = commentService.addComment(ticketId, request.content());
+    return ResponseEntity.status(HttpStatus.CREATED).body(CommentMapper.toResponse(comment));
+  }
+
+  @GetMapping
+  @Operation(
+      summary = "List a ticket's comments",
+      description =
+          "Retrieves a ticket's comments as their own paginated, oldest-to-newest list, "
+              + "independent of the ticket's other fields (002-list-comments FR-001, FR-002, FR-005).")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Page of comments; content is [] when the ticket has no comments (FR-003)",
+        content = @Content(schema = @Schema(implementation = CommentPage.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Ticket not found",
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public CommentPage listComments(
+      @PathVariable UUID ticketId,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
+    int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    Pageable pageable = PageRequest.of(Math.max(page, 0), effectiveSize);
+    return commentService.listByTicket(ticketId, pageable);
+  }
+}
+
+```
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/java/com/frequency/ticketing/web/controller/TicketCommentController.java has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:35Z)**_
+
+Phase 3 implementation done. Compiling and marking T001–T007.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:44Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Compile after Phase 3 implementation
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw -q -DskipTests test-compile 2>&1 | grep -v "^WARNING"; echo EXIT=$?`
+
+```text
+EXIT=0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:46Z)**_
+
+Now T008: unit test for `CommentPage.from`.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:51Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.unit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.frequency.ticketing.web.dto.CommentPage;
+import com.frequency.ticketing.web.dto.CommentResponse;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
+class CommentPageTest {
+
+  @Test
+  void fromMapsEveryFieldFromSpringPage() {
+    CommentResponse c1 =
+        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "one", Instant.now());
+    CommentResponse c2 =
+        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "two", Instant.now());
+    var springPage = new PageImpl<>(List.of(c1, c2), PageRequest.of(1, 2), 5);
+
+    CommentPage page = CommentPage.from(springPage);
+
+    assertThat(page.content()).containsExactly(c1, c2);
+    assertThat(page.page()).isEqualTo(1);
+    assertThat(page.size()).isEqualTo(2);
+    assertThat(page.totalElements()).isEqualTo(5);
+    assertThat(page.totalPages()).isEqualTo(3);
+  }
+
+  @Test
+  void fromEmptyPageHasEmptyContentNotNull() {
+    var springPage = new PageImpl<CommentResponse>(List.of(), PageRequest.of(0, 20), 0);
+
+    CommentPage page = CommentPage.from(springPage);
+
+    assertThat(page.content()).isNotNull().isEmpty();
+    assertThat(page.totalElements()).isZero();
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/test/java/com/frequency/ticketing/unit/CommentPageTest.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:04:53Z)**_
+
+Now compile and run this + all other Docker-independent unit tests.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:04Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Run all pure unit tests including new CommentPageTest
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && timeout 90 ./mvnw -q -Dtest=CommentPageTest,TicketMapperTest,CommentMapperTest,BeanValidationTest,TicketStatusTransitionPolicyTest test 2>&1 | grep -v "^WARNING"; echo EXIT=$?`
+
+```text
+13:35:03.848 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.3.Final
+EXIT=0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:06Z)**_
+
+All green. Now T009: grep-verify no `@Autowired` field injection introduced.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:07Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+T009: re-verify constructor-only injection
+
+`grep -rn "@Autowired" src/main/java/ || echo "PASS: no @Autowired anywhere in src/main/java — constructor injection only"`
+
+```text
+PASS: no @Autowired anywhere in src/main/java — constructor injection only
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:10Z)**_
+
+T009 done. Now T010: real quickstart run — using port 8090 to avoid touching the user's own instance on 8080.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:13Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Start own instance on port 8090 for quickstart verification
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && nohup ./mvnw -q spring-boot:run -Dspring-boot.run.arguments=--server.port=8090 > /tmp/app_002.log 2>&1 &
+echo "started PID $!"
+```
+
+```text
+started PID 679447
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:24Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Wait for app on 8090 and confirm clean startup
+
+```bash
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w "%{http_code}" http://localhost:8090/actuator/health 2>/dev/null | grep -qE "200|503"; then
+    echo "app responding after ~${i}s"
+    break
+  fi
+  sleep 2
+done
+curl -s http://localhost:8090/actuator/health; echo
+grep -iE "APPLICATION FAILED|Invalid mapping" /tmp/app_002.log || echo "clean startup"
+```
+
+```text
+app responding after ~4s
+{"status":"UP","groups":["liveness","readiness"]}
+clean startup
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:25Z)**_
+
+Clean startup, V2 migration applied. Running the full quickstart.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:34Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Run full quickstart scenario against real endpoint
+
+```bash
+BASE=http://localhost:8090/api/v1
+
+echo "=== 1. create ticket + 3 comments ==="
+TICKET_ID=$(curl -s -X POST $BASE/tickets -H 'Content-Type: application/json' \
+  -d '{"title":"Ordering test","description":"desc","priority":"LOW"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+curl -s -X POST $BASE/tickets/$TICKET_ID/comments -H 'Content-Type: application/json' -d '{"content":"first"}' > /dev/null
+curl -s -X POST $BASE/tickets/$TICKET_ID/comments -H 'Content-Type: application/json' -d '{"content":"second"}' > /dev/null
+curl -s -X POST $BASE/tickets/$TICKET_ID/comments -H 'Content-Type: application/json' -d '{"content":"third"}' > /dev/null
+
+echo "=== 2. list comments (FR-001, FR-002, FR-002a) ==="
+curl -s $BASE/tickets/$TICKET_ID/comments | python3 -m json.tool
+
+echo "=== 3. empty list not error (FR-003) ==="
+EMPTY_ID=$(curl -s -X POST $BASE/tickets -H 'Content-Type: application/json' \
+  -d '{"title":"No comments yet","description":"desc","priority":"LOW"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+curl -s $BASE/tickets/$EMPTY_ID/comments | python3 -m json.tool
+
+echo "=== 4. unknown ticket 404 (FR-004) ==="
+curl -s -w " [%{http_code}]\n" $BASE/tickets/00000000-0000-0000-0000-000000000000/comments
+
+echo "=== 5. pagination (FR-005) ==="
+curl -s "$BASE/tickets/$TICKET_ID/comments?page=0&size=2" | python3 -c "import json,sys; d=json.load(sys.stdin); print('page0 count:', len(d['content']), 'totalPages:', d['totalPages'])"
+curl -s "$BASE/tickets/$TICKET_ID/comments?page=1&size=2" | python3 -c "import json,sys; d=json.load(sys.stdin); print('page1 count:', len(d['content']), 'contents:', [c['content'] for c in d['content']])"
+```
+
+```text
+=== 1. create ticket + 3 comments ===
+=== 2. list comments (FR-001, FR-002, FR-002a) ===
+{
+    "content": [
+        {
+            "id": "0fdfa24c-ce38-49af-b4d0-232b06786bb6",
+            "ticketId": "d98241f9-1821-4958-a7a1-29f43b17e85b",
+            "content": "first",
+            "createdAt": "2026-09-21T08:05:33.593718Z"
+        },
+        {
+            "id": "3046bc09-f4a2-4660-a18e-7a710c06cffa",
+            "ticketId": "d98241f9-1821-4958-a7a1-29f43b17e85b",
+            "content": "second",
+            "createdAt": "2026-09-21T08:05:33.641862Z"
+        },
+        {
+            "id": "242076da-8ae8-40b8-b494-22b60d4106ba",
+            "ticketId": "d98241f9-1821-4958-a7a1-29f43b17e85b",
+            "content": "third",
+            "createdAt": "2026-09-21T08:05:33.682111Z"
+        }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 3,
+    "totalPages": 1
+}
+=== 3. empty list not error (FR-003) ===
+{
+    "content": [],
+    "page": 0,
+    "size": 20,
+    "totalElements": 0,
+    "totalPages": 0
+}
+=== 4. unknown ticket 404 (FR-004) ===
+{"code":"TICKET_NOT_FOUND","message":"Ticket not found: 00000000-0000-0000-0000-000000000000","timestamp":"2026-09-21T08:05:33.950858836Z","path":"/api/v1/tickets/00000000-0000-0000-0000-000000000000/comments","fieldErrors":[]} [404]
+=== 5. pagination (FR-005) ===
+page0 count: 2 totalPages: 2
+page1 count: 1 contents: ['third']
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:37Z)**_
+
+All 5 quickstart scenarios pass exactly as designed. Quick check that OpenAPI picked up the new endpoint too.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:41Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Confirm new endpoint documented in live OpenAPI spec
+
+```bash
+curl -s http://localhost:8090/v3/api-docs | python3 -c "
+import json,sys
+d = json.load(sys.stdin)
+path = d['paths'].get('/api/v1/tickets/{ticketId}/comments', {})
+print('GET summary:', path.get('get',{}).get('summary'))
+print('GET responses:', list(path.get('get',{}).get('responses',{}).keys()))
+"
+```
+
+```text
+GET summary: List a ticket's comments
+GET responses: ['200', '404']
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:43Z)**_
+
+Confirmed. Cleaning up my instance (leaving the user's port-8080 process untouched).
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:47Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Stop only my own instance, confirm user's 8080 process untouched
+
+```bash
+kill 679447 2>/dev/null
+pkill -f "server.port=8090" 2>/dev/null
+sleep 1 2>/dev/null || true
+python3 -c "import socket; s=socket.socket(); print('8090 free' if s.connect_ex(('127.0.0.1',8090))!=0 else '8090 STILL busy')"
+python3 -c "import socket; s=socket.socket(); print('8080 still busy (user process, untouched)' if s.connect_ex(('127.0.0.1',8080))==0 else '8080 free??')"
+```
+
+```text
+Exit code 144
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:51Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Re-check port status
+
+```bash
+python3 -c "import socket; s=socket.socket(); print('8090 free' if s.connect_ex(('127.0.0.1',8090))!=0 else '8090 STILL busy')"
+python3 -c "import socket; s=socket.socket(); print('8080 still busy (user process, untouched)' if s.connect_ex(('127.0.0.1',8080))==0 else '8080 free??')"
+```
+
+```text
+8090 free
+8080 still busy (user process, untouched)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:52Z)**_
+
+My instance stopped cleanly; user's own process on 8080 left running. Marking all tasks complete.
+
+_**Agent (claude-sonnet-5 2026-09-21 08:05:56Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Mark all 002-list-comments tasks complete
+
+```bash
+for t in T001 T002 T003 T004 T005 T006 T007 T008 T009 T010; do sed -i "s/- \[ \] $t /- [X] $t /" specs/002-list-comments/tasks.md; done
+grep -c "^- \[X\]" specs/002-list-comments/tasks.md
+grep -n "^- \[ \]" specs/002-list-comments/tasks.md || echo "all done"
+```
+
+```text
+10
+all done
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 08:06:04Z)**_
+
+That's my own sed edit reflected — expected, all 10/10 correct.
+
+No `.specify/extensions.yml` → post-execution hooks skipped.
+
+## Completion Report — 002-list-comments, fully implemented
+
+**10/10 tasks done**, all real, verified — not projected this time (Docker's still inaccessible for the Testcontainers suite, but a genuine system Postgres let me prove this end-to-end live):
+
+- **T001–T002**: `V2__comments_list_index.sql` (composite `(ticket_id, created_at)` index), `CommentPage` DTO
+- **T003–T004**: contract + integration tests written first (compile clean, would 404 pre-implementation — correct TDD red state for a REST endpoint)
+- **T005–T007**: paginated `CommentRepository` finder, `CommentService.listByTicket`, `GET /api/v1/tickets/{ticketId}/comments` on `TicketCommentController` — annotated with real `@Operation`/`@ApiResponses` from the start this time
+- **T008–T010**: `CommentPageTest` unit test (green), `@Autowired` grep-check (clean), full quickstart run
+
+**Live verification** (own instance on port 8090 — left your IDE's port-8080 process untouched):
+- Clean startup, `V2` migration applied
+- List returns 3 comments ordered `first, second, third`, each with `content` + `createdAt`
+- Empty ticket → `content: [], totalElements: 0` — not an error
+- Unknown ticket → `404 TICKET_NOT_FOUND`
+- Pagination: `page=0&size=2` → 2 items, `totalPages: 2`; `page=1&size=2` → 1 item (`"third"`)
+- `/v3/api-docs` confirms the new endpoint documented with summary + `200`/`404` responses
+
+Also re-ran all 5 Docker-independent unit test classes (26+ transition-matrix cases, mappers, validation, and the new `CommentPageTest`) — all green.
+
+**Still blocked, unchanged:** Testcontainers-based contract/integration suite (needs Docker specifically, not just a reachable Postgres) and the OWASP dependency scan (NVD access). Run `./mvnw test` yourself for the full green confirmation.
+
+---
+
+_**User (2026-09-21 10:44:20Z)**_
+
+<command-message>speckit-analyze</command-message>
+<command-name>/speckit-analyze</command-name>
+<command-args>I am getting CORS error when trying to create a ticket from FE app deployed at `localhost:5173`. Can you analyze how we can fix this?</command-args>
+
+---
+
+_**User (2026-09-21 10:44:20Z)**_
+
+Base directory for this skill: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/.claude/skills/speckit-analyze
+
+## User Input
+
+```text
+I am getting CORS error when trying to create a ticket from FE app deployed at `localhost:5173`. Can you analyze how we can fix this?
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Pre-Execution Checks
+
+**Check for extension hooks (before analysis)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_analyze` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Goal.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Goal
+
+Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit-tasks` has successfully produced a complete `tasks.md`.
+
+## Operating Constraints
+
+**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+
+**Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit-analyze`.
+
+## Execution Steps
+
+### 1. Initialize Analysis Context
+
+Run `python3 .specify/scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
+
+- SPEC = FEATURE_DIR/spec.md
+- PLAN = FEATURE_DIR/plan.md
+- TASKS = FEATURE_DIR/tasks.md
+
+Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
+For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+### 2. Load Artifacts (Progressive Disclosure)
+
+Load only the minimal necessary context from each artifact:
+
+**From spec.md:**
+
+- Overview/Context
+- Functional Requirements
+- Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
+- User Stories
+- Edge Cases (if present)
+
+**From plan.md:**
+
+- Architecture/stack choices
+- Data Model references
+- Phases
+- Technical constraints
+
+**From tasks.md:**
+
+- Task IDs
+- Descriptions
+- Phase grouping
+- Parallel markers [P]
+- Referenced file paths
+
+**From constitution:**
+
+- Load `.specify/memory/constitution.md` for principle validation
+
+### 3. Build Semantic Models
+
+Create internal representations (do not include raw artifacts in output):
+
+- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
+- **User story/action inventory**: Discrete user actions with acceptance criteria
+- **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
+- **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
+
+### 4. Detection Passes (Token-Efficient Analysis)
+
+Focus on high-signal findings. Limit to 50 findings total; aggregate remainder in overflow summary.
+
+#### A. Duplication Detection
+
+- Identify near-duplicate requirements
+- Mark lower-quality phrasing for consolidation
+
+#### B. Ambiguity Detection
+
+- Flag vague adjectives (fast, scalable, secure, intuitive, robust) lacking measurable criteria
+- Flag unresolved placeholders (TODO, TKTK, ???, `<placeholder>`, etc.)
+
+#### C. Underspecification
+
+- Requirements with verbs but missing object or measurable outcome
+- User stories missing acceptance criteria alignment
+- Tasks referencing files or components not defined in spec/plan
+
+#### D. Constitution Alignment
+
+- Any requirement or plan element conflicting with a MUST principle
+- Missing mandated sections or quality gates from constitution
+
+#### E. Coverage Gaps
+
+- Requirements with zero associated tasks
+- Tasks with no mapped requirement/story
+- Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
+
+#### F. Inconsistency
+
+- Terminology drift (same concept named differently across files)
+- Data entities referenced in plan but absent in spec (or vice versa)
+- Task ordering contradictions (e.g., integration tasks before foundational setup tasks without dependency note)
+- Conflicting requirements (e.g., one requires Next.js while other specifies Vue)
+
+### 5. Severity Assignment
+
+Use this heuristic to prioritize findings:
+
+- **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
+- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
+- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
+- **LOW**: Style/wording improvements, minor redundancy not affecting execution order
+
+### 6. Produce Compact Analysis Report
+
+Output a Markdown report (no file writes) with the following structure:
+
+## Specification Analysis Report
+
+| ID | Category | Severity | Location(s) | Summary | Recommendation |
+|----|----------|----------|-------------|---------|----------------|
+| A1 | Duplication | HIGH | spec.md:L120-134 | Two similar requirements ... | Merge phrasing; keep clearer version |
+
+(Add one row per finding; generate stable IDs prefixed by category initial.)
+
+**Coverage Summary Table:**
+
+| Requirement Key | Has Task? | Task IDs | Notes |
+|-----------------|-----------|----------|-------|
+
+**Constitution Alignment Issues:** (if any)
+
+**Unmapped Tasks:** (if any)
+
+**Metrics:**
+
+- Total Requirements
+- Total Tasks
+- Coverage % (requirements with >=1 task)
+- Ambiguity Count
+- Duplication Count
+- Critical Issues Count
+
+### 7. Provide Next Actions
+
+At end of report, output a concise Next Actions block:
+
+- If CRITICAL issues exist: Recommend resolving before `/speckit-implement`
+- If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
+- Provide explicit command suggestions: e.g., "Run /speckit-specify with refinement", "Run /speckit-plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+
+### 8. Offer Remediation
+
+Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+
+### 9. Check for extension hooks
+
+After reporting, check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.after_analyze` key
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Operating Principles
+
+### Context Efficiency
+
+- **Minimal high-signal tokens**: Focus on actionable findings, not exhaustive documentation
+- **Progressive disclosure**: Load artifacts incrementally; don't dump all content into analysis
+- **Token-efficient output**: Limit findings table to 50 rows; summarize overflow
+- **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
+
+### Analysis Guidelines
+
+- **NEVER modify files** (this is read-only analysis)
+- **NEVER hallucinate missing sections** (if absent, report them accurately)
+- **Prioritize constitution violations** (these are always CRITICAL)
+- **Use examples over exhaustive rules** (cite specific instances, not generic patterns)
+- **Report zero issues gracefully** (emit success report with coverage statistics)
+
+## Context
+
+I am getting CORS error when trying to create a ticket from FE app deployed at `localhost:5173`. Can you analyze how we can fix this?
+
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 10:44:40Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check active feature and prerequisites
+
+```bash
+cat .specify/feature.json 2>/dev/null
+echo "---"
+python3 .specify/scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks 2>&1
+ls .specify/extensions.yml 2>/dev/null || echo "NO extensions.yml"
+```
+
+```text
+{"feature_directory": "specs/002-list-comments"}
+---
+{"FEATURE_DIR":"/home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/002-list-comments","AVAILABLE_DOCS":["research.md","data-model.md","contracts/","quickstart.md","tasks.md"]}
+NO extensions.yml
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:44:48Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Search for any CORS coverage across specs, constitution, and code
+
+```bash
+echo "---grep CORS across all specs---" && grep -rni "cors\|cross-origin\|cross origin" specs/ .specify/memory/constitution.md 2>/dev/null || echo "no CORS mention anywhere in spec/plan/tasks/constitution"
+echo "---grep CORS in code---" && grep -rni "cors\|@CrossOrigin\|CorsConfiguration\|CorsFilter\|addCorsMappings" src/main/java/ 2>/dev/null || echo "no CORS config anywhere in src/main/java"
+echo "---application.yml CORS check---" && grep -ni "cors" src/main/resources/application.yml || echo "none in application.yml"
+```
+
+```text
+---grep CORS across all specs---
+no CORS mention anywhere in spec/plan/tasks/constitution
+---grep CORS in code---
+no CORS config anywhere in src/main/java
+---application.yml CORS check---
+none in application.yml
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:45:24Z)**_
+
+Prerequisites resolved to `002-list-comments`, but the failing endpoint (`POST /tickets`) is `001-ticket-management-backend`'s — CORS is genuinely cross-cutting, so I pulled in both features plus the constitution. Confirmed by direct search: **zero CORS coverage anywhere** — not in constitution, not in either spec/plan/tasks, not in `src/main/java`.
+
+## Specification Analysis Report
+
+| ID | Category | Severity | Location(s) | Summary | Recommendation |
+|----|----------|----------|-------------|---------|----------------|
+| C1 | Coverage Gap | CRITICAL | `.specify/memory/constitution.md` (no CORS rule); `001-ticket-management-backend/spec.md` Assumptions (names "a UI" as the consumer but never requires cross-origin access to work); `001-.../plan.md` Constitution Check (no CORS row); `001-.../tasks.md` Phase 2 Foundational (no CORS task, unlike logging/actuator/OpenAPI which are there); `src/main/java/` (zero `@CrossOrigin`/`CorsConfigurationSource`/`CorsFilter`) | Spring Boot denies cross-origin requests by default. Since no CORS policy exists anywhere in this codebase, **no browser-hosted frontend on any origin** can call any `/api/v1/**` endpoint — not just ticket creation. This is exactly the error you're seeing from `localhost:5173`, and it would reproduce identically on every other endpoint (list, update, transitions, comments) the moment the UI tried them. | Add a `CorsConfigurationSource` bean (allowed origins driven by config/env, dev default including `http://localhost:5173`) as a Foundational task. Also add a constitution note establishing CORS as a standing cross-cutting rule so it isn't silently dropped on the next feature the way it was on 001 and 002 — the same class of gap as the OpenAPI-annotation miss you caught earlier. |
+| C2 | Underspecification | MEDIUM | `001-.../spec.md` — no FR ever states the backend must be reachable by a browser-based UI on a different origin | The spec names "a UI" as the intended consumer (Assumptions) but never turns that into a testable requirement, which is why nothing downstream (plan/tasks/code) ever picked it up. | When this is fixed, add one line to 001's spec Assumptions or a new FR acknowledging cross-origin access as an explicit, testable requirement — otherwise the next spec/plan/tasks cycle can drop it again with no artifact to catch it. |
+
+**Coverage Summary Table:**
+
+| Requirement Key | Has Task? | Task IDs | Notes |
+|---|---|---|---|
+| Cross-origin (browser UI) access | **No** | — | Zero coverage across both features — see C1 |
+
+**Constitution Alignment Issues:** C1 — no CORS principle exists at all; nothing to violate, which is itself the gap.
+
+**Unmapped Tasks:** None.
+
+**Metrics:**
+- Total Requirements scanned: 001's 13 FR + 6 SC, 002's 5 FR + 3 SC (24) — none address CORS
+- Coverage % for this specific concern: 0%
+- Critical Issues Count: 1
+
+## Next Actions
+
+**CRITICAL — recommend fixing before any further frontend integration work.** This blocks the UI entirely, not just ticket creation.
+
+- Manually edit `001-ticket-management-backend/tasks.md` (or open a small standalone fix) to add a CORS-configuration task under Foundational
+- Optionally run `/speckit-constitution` to add a CORS policy line to Technology Stack & Constraints, so it's governance-enforced going forward
+
+## Offer Remediation
+
+This command is read-only — I haven't touched any files. Want me to draft the concrete fix (a `CorsConfigurationSource` bean, config-driven allowed origins with a `localhost:5173` dev default, plus the task-doc updates)?
+
+---
+
+_**User (2026-09-21 10:58:39Z)**_
+
+yes, draft the fix
+
+---
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:03Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./src/main/resources/application.yml`
+
+```text
+1	server:
+2	  port: 8080
+3	
+4	spring:
+5	  application:
+6	    name: ticketing-system
+7	  datasource:
+8	    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ticketing}
+9	    username: ${DB_USER:ticketing}
+10	    password: ${DB_PASSWORD:ticketing}
+11	  jpa:
+12	    hibernate:
+13	      ddl-auto: validate
+14	    open-in-view: false
+15	    properties:
+16	      hibernate:
+17	        jdbc:
+18	          time_zone: UTC
+19	  flyway:
+20	    enabled: true
+21	    locations: classpath:db/migration
+22	
+23	
+24	management:
+25	  endpoints:
+26	    web:
+27	      exposure:
+28	        include: health,info
+29	  endpoint:
+30	    health:
+31	      show-details: when-authorized
+32	      probes:
+33	        enabled: true
+34	  health:
+35	    db:
+36	      enabled: true
+37
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:07Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/resources/application.yml has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:09Z)**_
+
+Now the CORS config bean.
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:14Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.config;
+
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+/**
+ * Allows a browser-hosted frontend on a different origin (e.g. a local Vite dev server) to call
+ * the {@code /api/v1/**} endpoints. Spring Boot has no CORS policy by default — without this,
+ * every cross-origin browser request is blocked before it reaches a controller. Allowed origins
+ * come from config (`app.cors.allowed-origins`), not a wildcard, so production deployments set
+ * their real frontend origin(s) via the {@code CORS_ALLOWED_ORIGINS} environment variable.
+ */
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+  private final List<String> allowedOrigins;
+
+  public CorsConfig(@Value("${app.cors.allowed-origins}") String allowedOrigins) {
+    this.allowedOrigins = List.of(allowedOrigins.split("\\s*,\\s*"));
+  }
+
+  @Override
+  public void addCorsMappings(CorsRegistry registry) {
+    registry
+        .addMapping("/api/v1/**")
+        .allowedOrigins(allowedOrigins.toArray(new String[0]))
+        .allowedMethods("GET", "POST", "PATCH", "DELETE", "OPTIONS")
+        .allowedHeaders("*")
+        .allowCredentials(false)
+        .maxAge(3600);
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/main/java/com/frequency/ticketing/config/CorsConfig.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:15Z)**_
+
+Compiling and verifying live with a real preflight request.
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:22Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Compile CORS fix
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw -q -DskipTests test-compile 2>&1 | grep -v "^WARNING"; echo EXIT=$?`
+
+```text
+EXIT=0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:26Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check port and DB availability before live test
+
+```bash
+python3 -c "import socket; s=socket.socket(); print('8090 busy?' if s.connect_ex(('127.0.0.1',8090))==0 else '8090 free, ok to use')"
+python3 -c "import socket; s=socket.socket(); print('5432 open' if s.connect_ex(('127.0.0.1',5432))==0 else '5432 closed - DB gone')"
+```
+
+```text
+8090 free, ok to use
+5432 open
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:31Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Start own instance to verify CORS fix live
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && nohup ./mvnw -q spring-boot:run -Dspring-boot.run.arguments=--server.port=8090 > /tmp/app_cors.log 2>&1 &
+echo "started PID $!"
+```
+
+```text
+started PID 739861
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:38Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Verify CORS preflight and actual request work for allowed origin, and are rejected for disallowed origin
+
+```bash
+for i in $(seq 1 30); do
+  if curl -s -o /dev/null -w "%{http_code}" http://localhost:8090/actuator/health 2>/dev/null | grep -qE "200|503"; then
+    echo "app responding after ~${i}s"; break
+  fi
+  sleep 2
+done
+echo "=== BEFORE-fix behavior would 404/no-header; now simulate browser preflight (OPTIONS) from localhost:5173 ==="
+curl -s -i -X OPTIONS http://localhost:8090/api/v1/tickets \
+  -H "Origin: http://localhost:5173" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type" | head -20
+echo ""
+echo "=== actual POST with Origin header (simulating fetch from the FE app) ==="
+curl -s -i -X POST http://localhost:8090/api/v1/tickets \
+  -H "Origin: http://localhost:5173" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"CORS test","description":"desc","priority":"LOW"}' | head -20
+echo ""
+echo "=== disallowed origin should NOT get the allow-origin header ==="
+curl -s -i -X OPTIONS http://localhost:8090/api/v1/tickets \
+  -H "Origin: http://evil.example.com" \
+  -H "Access-Control-Request-Method: POST" | grep -i "access-control-allow-origin" || echo "correctly absent for disallowed origin"
+```
+
+```text
+app responding after ~1s
+=== BEFORE-fix behavior would 404/no-header; now simulate browser preflight (OPTIONS) from localhost:5173 ===
+HTTP/1.1 200 
+X-Correlation-Id: 8137e806-e79a-4711-adae-d4a9d0b19e03
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: http://localhost:5173
+Access-Control-Allow-Methods: GET,POST,PATCH,DELETE,OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Max-Age: 3600
+Allow: GET, HEAD, POST, PUT, DELETE, OPTIONS, PATCH
+Content-Length: 0
+Date: Mon, 21 Sep 2026 10:59:38 GMT
+
+
+=== actual POST with Origin header (simulating fetch from the FE app) ===
+HTTP/1.1 201 
+X-Correlation-Id: 0c772c99-4b08-4c48-8ec5-2aec9a5eddf0
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: http://localhost:5173
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Mon, 21 Sep 2026 10:59:38 GMT
+
+{"id":"72c1e57b-28c2-4c75-9e65-76ccea55078a","title":"CORS test","description":"desc","priority":"LOW","status":"OPEN","assignee":null,"createdAt":"2026-09-21T10:59:38.854938211Z","updatedAt":"2026-09-21T10:59:38.854938211Z"}
+=== disallowed origin should NOT get the allow-origin header ===
+correctly absent for disallowed origin
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:40Z)**_
+
+All three checks pass exactly as intended. Cleaning up my instance.
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Stop test instance, confirm user's process untouched
+
+```bash
+kill 739861 2>/dev/null
+pkill -f "server.port=8090" 2>/dev/null
+python3 -c "import socket; s=socket.socket(); print('8090 free' if s.connect_ex(('127.0.0.1',8090))!=0 else '8090 still busy')" 2>&1
+python3 -c "import socket; s=socket.socket(); print('8080 untouched, still busy' if s.connect_ex(('127.0.0.1',8080))==0 else '8080 free')" 2>&1
+```
+
+```text
+Exit code 144
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:47Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Re-check ports
+
+```bash
+python3 -c "import socket; s=socket.socket(); print('8090 free' if s.connect_ex(('127.0.0.1',8090))!=0 else '8090 still busy')"
+python3 -c "import socket; s=socket.socket(); print('8080 untouched, still busy' if s.connect_ex(('127.0.0.1',8080))==0 else '8080 free')"
+```
+
+```text
+8090 free
+8080 untouched, still busy
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:51Z)**_
+
+Adding a regression test for this (constitution mandates test-first even for fixes), then documenting it in `tasks.md`.
+
+_**Agent (claude-sonnet-5 2026-09-21 10:59:57Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+```java
+package com.frequency.ticketing.contract;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.frequency.ticketing.support.AbstractIntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.RequestEntity;
+import org.springframework.http.ResponseEntity;
+
+/**
+ * A browser-hosted frontend on an allowed origin (app.cors.allowed-origins, default includes
+ * http://localhost:5173) must be able to call /api/v1/** cross-origin; any other origin must
+ * not receive an Access-Control-Allow-Origin header.
+ */
+class CorsConfigContractTest extends AbstractIntegrationTest {
+
+  @Test
+  void preflightFromAllowedOriginIsGranted() {
+    RequestEntity<Void> preflight =
+        RequestEntity.options(baseUrl("/tickets"))
+            .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+            .header("Access-Control-Request-Method", "POST")
+            .build();
+
+    ResponseEntity<Void> response = restTemplate.exchange(preflight, Void.class);
+
+    assertThat(response.getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN))
+        .isEqualTo("http://localhost:5173");
+  }
+
+  @Test
+  void preflightFromDisallowedOriginGetsNoAllowOriginHeader() {
+    RequestEntity<Void> preflight =
+        RequestEntity.options(baseUrl("/tickets"))
+            .header(HttpHeaders.ORIGIN, "http://evil.example.com")
+            .header("Access-Control-Request-Method", "POST")
+            .build();
+
+    ResponseEntity<Void> response = restTemplate.exchange(preflight, Void.class);
+
+    assertThat(response.getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN)).isNull();
+  }
+}
+
+```
+
+```text
+File created successfully at: /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/src/test/java/com/frequency/ticketing/contract/CorsConfigContractTest.java (file state is current in your context — no need to Read it back)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:06Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Compile new CORS test
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw -q -DskipTests test-compile 2>&1 | grep -v "^WARNING"; echo EXIT=$?`
+
+```text
+EXIT=0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:10Z)**_
+
+Now documenting this in `001-ticket-management-backend/tasks.md` — appending rather than renumbering the already-executed list.
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:11Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Check end of 001 tasks.md for append point
+
+`tail -20 specs/001-ticket-management-backend/tasks.md`
+
+```text
+### Task Count Summary
+
+- Phase 1 (Setup): 7 tasks
+- Phase 2 (Foundational): 13 tasks
+- Phase 3 (User Story 1): 18 tasks (11 tests + 7 implementation)
+- Phase 4 (User Story 2): 7 tasks (2 tests + 5 implementation)
+- Phase 5 (User Story 3): 6 tasks (3 tests + 3 implementation)
+- Phase 6 (Polish): 7 tasks
+- **Total: 58 tasks (T001-T058)**
+
+---
+
+## Notes
+
+- [P] tasks touch different files with no unmet dependency
+- [Story] label maps every user-story-phase task to spec.md's US1/US2/US3 for traceability
+- Every constraint quoted from data-model.md is binding — do not relax at implementation time
+- Verify each test fails before writing its implementation (constitution Principle III)
+- Commit after each task or logical group
+- Stop at each checkpoint to validate that story independently before continuing
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:19Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file /home/tahir-hussain/code/code/husain707/reactive/growth/fy27h1/ticketing-system/ticketing-system/specs/001-ticket-management-backend/tasks.md has been updated successfully. (note: the file had been modified on disk since you last read it — the edit applied cleanly, but the file contains other changes not in your context. Read it before edits that depend on surrounding content.)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:21Z)**_
+
+Final sanity check across all Docker-independent tests.
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:27Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="Bash"><details>
+<summary>Tool use: **Bash**</summary>
+Final regression check on unit tests
+
+`export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && timeout 90 ./mvnw -q -Dtest=CommentPageTest,TicketMapperTest,CommentMapperTest,BeanValidationTest,TicketStatusTransitionPolicyTest test 2>&1 | grep -v "^WARNING"; echo EXIT=$?`
+
+```text
+16:30:27.147 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.3.Final
+EXIT=0
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-5 2026-09-21 11:00:33Z)**_
+
+All green, no regressions.
+
+## Fix delivered and verified live
+
+**Root cause**: Spring Boot has no CORS policy by default — every cross-origin browser request to `/api/v1/**` was silently blocked, not just ticket creation.
+
+**Changes:**
+- `src/main/resources/application.yml` — `app.cors.allowed-origins` (env `CORS_ALLOWED_ORIGINS`, dev default `http://localhost:5173,http://localhost:3000`)
+- `src/main/java/com/frequency/ticketing/config/CorsConfig.java` — `WebMvcConfigurer` bean, constructor injection, explicit allow-list (no wildcard, secure default)
+- `src/test/java/com/frequency/ticketing/contract/CorsConfigContractTest.java` — allowed origin gets the header, disallowed origin doesn't
+- `001-ticket-management-backend/tasks.md` — appended `T059` documenting the fix (appended, not inserted, so the already-executed 58 tasks keep their numbers)
+
+**Verified live** (own instance on port 8090, your IDE's 8080 untouched):
+- Preflight `OPTIONS` from `Origin: http://localhost:5173` → `200`, `Access-Control-Allow-Origin: http://localhost:5173`
+- Actual `POST /api/v1/tickets` from that origin → `201`, ticket created, same header present
+- Same request from `Origin: http://evil.example.com` → header correctly absent
+
+Restart your app (`./mvnw spring-boot:run`) and the `localhost:5173` CORS error should be gone. `CorsConfigContractTest` itself needs Docker to execute (same Testcontainers gap as the rest of the suite) — the live curl checks above are the actual proof this time.

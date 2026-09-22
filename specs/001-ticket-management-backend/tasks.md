@@ -387,7 +387,30 @@ Task: "Create TicketResponse/TicketDetailResponse/TicketPage/TicketTransitionReq
 - Phase 4 (User Story 2): 7 tasks (2 tests + 5 implementation)
 - Phase 5 (User Story 3): 6 tasks (3 tests + 3 implementation)
 - Phase 6 (Polish): 7 tasks
-- **Total: 58 tasks (T001-T058)**
+- Post-implementation fix: 1 task
+- **Total: 59 tasks (T001-T058, T059)**
+
+---
+
+## Post-Implementation Fixes
+
+Found and fixed after the original 58 tasks were complete — appended rather than inserted, to
+avoid renumbering an already-executed task list.
+
+- [X] T059 Add CORS policy so a browser-hosted frontend on a different origin can call
+      `/api/v1/**` (found via `/speckit-analyze`: Spring Boot has no CORS policy by default, so
+      every cross-origin browser request — e.g. from a local frontend dev server — was silently
+      blocked, not just for ticket creation but every endpoint). Added
+      `app.cors.allowed-origins` (env-var `CORS_ALLOWED_ORIGINS`, dev default
+      `http://localhost:5173,http://localhost:3000`) in
+      `src/main/resources/application.yml`, and `CorsConfig` (`WebMvcConfigurer`, constructor
+      injection, no wildcard origin) in
+      `src/main/java/com/frequency/ticketing/config/CorsConfig.java`; contract test in
+      `src/test/java/com/frequency/ticketing/contract/CorsConfigContractTest.java` (allowed
+      origin gets `Access-Control-Allow-Origin`, disallowed origin does not). Verified live
+      against a running instance: preflight `OPTIONS` and actual `POST` from
+      `Origin: http://localhost:5173` both succeed with the correct header; `Origin:
+      http://evil.example.com` gets no such header.
 
 ---
 
