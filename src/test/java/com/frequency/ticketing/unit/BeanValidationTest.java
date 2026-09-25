@@ -36,7 +36,7 @@ class BeanValidationTest {
 
   @Test
   void blankTitleViolatesNotBlank() {
-    var request = new TicketCreateRequest("", "description", TicketPriority.LOW, null);
+    var request = new TicketCreateRequest("", "description", TicketPriority.LOW);
 
     Set<ConstraintViolation<TicketCreateRequest>> violations = validator.validate(request);
 
@@ -45,7 +45,7 @@ class BeanValidationTest {
 
   @Test
   void oversizedTitleViolatesSize() {
-    var request = new TicketCreateRequest("x".repeat(201), "description", TicketPriority.LOW, null);
+    var request = new TicketCreateRequest("x".repeat(201), "description", TicketPriority.LOW);
 
     Set<ConstraintViolation<TicketCreateRequest>> violations = validator.validate(request);
 
@@ -54,14 +54,15 @@ class BeanValidationTest {
 
   @Test
   void titleAtMaxLengthIsValid() {
-    var request = new TicketCreateRequest("x".repeat(200), "description", TicketPriority.LOW, null);
+    var request = new TicketCreateRequest("x".repeat(200), "description", TicketPriority.LOW);
 
-    assertThat(validator.validate(request)).isEmpty();
+    Set<ConstraintViolation<TicketCreateRequest>> violations = validator.validate(request);
+    assertThat(violations).isEmpty();
   }
 
   @Test
   void blankDescriptionViolatesNotBlank() {
-    var request = new TicketCreateRequest("title", "", TicketPriority.LOW, null);
+    var request = new TicketCreateRequest("title", "", TicketPriority.LOW);
 
     Set<ConstraintViolation<TicketCreateRequest>> violations = validator.validate(request);
 
@@ -72,9 +73,10 @@ class BeanValidationTest {
   @Test
   void missingPriorityIsValidCreateRequestDefaultsLater() {
     // priority has no @NotNull on TicketCreateRequest — TicketService defaults it to MEDIUM.
-    var request = new TicketCreateRequest("title", "description", null, null);
+    var request = new TicketCreateRequest("title", "description", null);
 
-    assertThat(validator.validate(request)).isEmpty();
+    Set<ConstraintViolation<TicketCreateRequest>> violations = validator.validate(request);
+    assertThat(violations).isEmpty();
   }
 
   @Test

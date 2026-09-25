@@ -12,6 +12,9 @@ import com.frequency.ticketing.web.dto.TicketResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 /**
  * Proves restart durability (FR-008, SC-003), not just JPA session-scoping: writes a ticket
@@ -23,11 +26,13 @@ class TicketRestartDurabilityIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void ticketSurvivesSimulatedApplicationRestart() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     TicketResponse created =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Survives restart", "desc", TicketPriority.HIGH, "jane.doe"),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Survives restart", "desc", TicketPriority.HIGH), auth),
                 TicketResponse.class)
             .getBody();
 
@@ -47,7 +52,7 @@ class TicketRestartDurabilityIntegrationTest extends AbstractIntegrationTest {
       assertThat(reloaded.getTitle()).isEqualTo("Survives restart");
       assertThat(reloaded.getDescription()).isEqualTo("desc");
       assertThat(reloaded.getPriority()).isEqualTo(TicketPriority.HIGH);
-      assertThat(reloaded.getAssignee()).isEqualTo("jane.doe");
+      assertThat(reloaded.getCreatedById()).isEqualTo(idOf(TestUser.GENERAL_1));
       assertThat(reloaded.getStatus()).isEqualTo(created.status());
     } finally {
       restarted.close();

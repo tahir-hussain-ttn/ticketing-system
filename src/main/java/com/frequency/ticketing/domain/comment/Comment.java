@@ -21,6 +21,9 @@ public class Comment {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String content;
 
+  @Column(name = "author_id", nullable = false)
+  private UUID authorId;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -28,10 +31,11 @@ public class Comment {
     // JPA
   }
 
-  public Comment(UUID ticketId, String content) {
+  public Comment(UUID ticketId, String content, UUID authorId) {
     this.id = UUID.randomUUID();
     this.ticketId = ticketId;
     this.content = content;
+    this.authorId = authorId;
   }
 
   @PrePersist
@@ -49,6 +53,10 @@ public class Comment {
 
   public String getContent() {
     return content;
+  }
+
+  public UUID getAuthorId() {
+    return authorId;
   }
 
   public Instant getCreatedAt() {

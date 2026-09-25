@@ -37,8 +37,11 @@ public class Ticket {
   @Column(nullable = false, length = 20)
   private TicketStatus status;
 
-  @Column(length = 200)
-  private String assignee;
+  @Column(name = "assignee_id")
+  private UUID assigneeId;
+
+  @Column(name = "created_by_id", nullable = false)
+  private UUID createdById;
 
   @Version private long version;
 
@@ -52,12 +55,12 @@ public class Ticket {
     // JPA
   }
 
-  public Ticket(String title, String description, TicketPriority priority, String assignee) {
+  public Ticket(String title, String description, TicketPriority priority, UUID createdById) {
     this.id = UUID.randomUUID();
     this.title = title;
     this.description = description;
     this.priority = priority;
-    this.assignee = assignee;
+    this.createdById = createdById;
     this.status = TicketStatus.OPEN;
   }
 
@@ -78,8 +81,7 @@ public class Ticket {
     this.status = newStatus;
   }
 
-  public void updateFields(
-      String title, String description, TicketPriority priority, String assignee) {
+  public void updateFields(String title, String description, TicketPriority priority) {
     if (title != null) {
       this.title = title;
     }
@@ -89,9 +91,15 @@ public class Ticket {
     if (priority != null) {
       this.priority = priority;
     }
-    if (assignee != null) {
-      this.assignee = assignee;
-    }
+  }
+
+  /**
+   * Sets the assignee. Callers MUST only reach this through {@code TicketService}'s
+   * auto-assignment (creation) or {@code ADMIN}-only reassignment paths (spec 005 FR-009,
+   * FR-013) — never from a general field update.
+   */
+  public void assignTo(UUID assigneeId) {
+    this.assigneeId = assigneeId;
   }
 
   public UUID getId() {
@@ -114,8 +122,12 @@ public class Ticket {
     return status;
   }
 
-  public String getAssignee() {
-    return assignee;
+  public UUID getAssigneeId() {
+    return assigneeId;
+  }
+
+  public UUID getCreatedById() {
+    return createdById;
   }
 
   public long getVersion() {

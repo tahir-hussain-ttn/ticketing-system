@@ -29,7 +29,9 @@ public class CorsConfig implements WebMvcConfigurer {
         .allowedOrigins(allowedOrigins.toArray(new String[0]))
         .allowedMethods("GET", "POST", "PATCH", "DELETE", "OPTIONS")
         .allowedHeaders("*")
-        .allowCredentials(false)
+        // 005-auth-rag-chatbot: session-cookie auth requires credentialed CORS (research.md
+        // "CORS and CSRF"); allowedOrigins stays a real allow-list, never a wildcard.
+        .allowCredentials(true)
         .maxAge(3600);
   }
 }

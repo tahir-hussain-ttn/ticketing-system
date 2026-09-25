@@ -9,7 +9,7 @@ import com.frequency.ticketing.web.dto.TicketCreateRequest;
 import com.frequency.ticketing.web.dto.TicketPage;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +22,12 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void blankTitleRejectedWithFieldError() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     ResponseEntity<ApiError> response =
-        restTemplate.postForEntity(
+        restTemplate.exchange(
             baseUrl("/tickets"),
-            new TicketCreateRequest("", "desc", TicketPriority.LOW, null),
+            HttpMethod.POST,
+            authEntity(new TicketCreateRequest("", "desc", TicketPriority.LOW), auth),
             ApiError.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -35,10 +37,12 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void blankDescriptionRejectedWithFieldError() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     ResponseEntity<ApiError> response =
-        restTemplate.postForEntity(
+        restTemplate.exchange(
             baseUrl("/tickets"),
-            new TicketCreateRequest("Title", "", TicketPriority.LOW, null),
+            HttpMethod.POST,
+            authEntity(new TicketCreateRequest("Title", "", TicketPriority.LOW), auth),
             ApiError.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -48,21 +52,23 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void invalidPriorityRejectedAndNoRowWritten() {
-    long countBefore = countTickets();
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
+    long countBefore = countTickets(auth);
 
     ResponseEntity<ApiError> response =
-        restTemplate.postForEntity(
+        restTemplate.exchange(
             baseUrl("/tickets"),
-            new HttpEntity<>(Map.of("title", "Bad priority", "description", "d", "priority", "URGENT")),
+            HttpMethod.POST,
+            authEntity(Map.of("title", "Bad priority", "description", "d", "priority", "URGENT"), auth),
             ApiError.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(countTickets()).isEqualTo(countBefore);
+    assertThat(countTickets(auth)).isEqualTo(countBefore);
   }
 
-  private long countTickets() {
+  private long countTickets(HttpHeaders auth) {
     return restTemplate
-        .exchange(baseUrl("/tickets?size=1"), HttpMethod.GET, null, TicketPage.class)
+        .exchange(baseUrl("/tickets?size=1&scope=mine"), HttpMethod.GET, authEntity(auth), TicketPage.class)
         .getBody()
         .totalElements();
   }

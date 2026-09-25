@@ -11,6 +11,8 @@ import com.frequency.ticketing.web.dto.TicketCreateRequest;
 import com.frequency.ticketing.web.dto.TicketResponse;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 /**
  * Ordering + timestamps (FR-002, FR-002a), empty-list-not-error (FR-003), and pagination
@@ -18,32 +20,38 @@ import org.junit.jupiter.api.Test;
  */
 class CommentListIntegrationTest extends AbstractIntegrationTest {
 
-  private UUID createTicket(String title) {
+  private UUID createTicket(HttpHeaders auth, String title) {
     return restTemplate
-        .postForEntity(
+        .exchange(
             baseUrl("/tickets"),
-            new TicketCreateRequest(title, "desc", TicketPriority.LOW, null),
+            HttpMethod.POST,
+            authEntity(new TicketCreateRequest(title, "desc", TicketPriority.LOW), auth),
             TicketResponse.class)
         .getBody()
         .id();
   }
 
-  private void addComment(UUID ticketId, String content) {
-    restTemplate.postForEntity(
+  private void addComment(HttpHeaders auth, UUID ticketId, String content) {
+    restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/comments"),
-        new CommentCreateRequest(content),
+        HttpMethod.POST,
+        authEntity(new CommentCreateRequest(content), auth),
         CommentResponse.class);
   }
 
   @Test
   void threeCommentsListedOldestToNewestWithContentAndTimestamp() {
-    UUID ticketId = createTicket("Ordering test");
-    addComment(ticketId, "first");
-    addComment(ticketId, "second");
-    addComment(ticketId, "third");
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
+    UUID ticketId = createTicket(auth, "Ordering test");
+    addComment(auth, ticketId, "first");
+    addComment(auth, ticketId, "second");
+    addComment(auth, ticketId, "third");
 
     CommentPage page =
-        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId + "/comments"), CommentPage.class).getBody();
+        restTemplate
+            .exchange(
+                baseUrl("/tickets/" + ticketId + "/comments"), HttpMethod.GET, authEntity(auth), CommentPage.class)
+            .getBody();
 
     assertThat(page.content()).extracting(CommentResponse::content).containsExactly("first", "second", "third");
     page.content().forEach(c -> assertThat(c.createdAt()).isNotNull());
@@ -51,10 +59,14 @@ class CommentListIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void ticketWithNoCommentsReturnsEmptyListNotError() {
-    UUID ticketId = createTicket("No comments");
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
+    UUID ticketId = createTicket(auth, "No comments");
 
     CommentPage page =
-        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId + "/comments"), CommentPage.class).getBody();
+        restTemplate
+            .exchange(
+                baseUrl("/tickets/" + ticketId + "/comments"), HttpMethod.GET, authEntity(auth), CommentPage.class)
+            .getBody();
 
     assertThat(page.content()).isEmpty();
     assertThat(page.totalElements()).isZero();
@@ -62,18 +74,27 @@ class CommentListIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void pagesThroughCommentsCorrectly() {
-    UUID ticketId = createTicket("Pagination test");
-    addComment(ticketId, "c1");
-    addComment(ticketId, "c2");
-    addComment(ticketId, "c3");
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
+    UUID ticketId = createTicket(auth, "Pagination test");
+    addComment(auth, ticketId, "c1");
+    addComment(auth, ticketId, "c2");
+    addComment(auth, ticketId, "c3");
 
     CommentPage firstPage =
         restTemplate
-            .getForEntity(baseUrl("/tickets/" + ticketId + "/comments?page=0&size=2"), CommentPage.class)
+            .exchange(
+                baseUrl("/tickets/" + ticketId + "/comments?page=0&size=2"),
+                HttpMethod.GET,
+                authEntity(auth),
+                CommentPage.class)
             .getBody();
     CommentPage secondPage =
         restTemplate
-            .getForEntity(baseUrl("/tickets/" + ticketId + "/comments?page=1&size=2"), CommentPage.class)
+            .exchange(
+                baseUrl("/tickets/" + ticketId + "/comments?page=1&size=2"),
+                HttpMethod.GET,
+                authEntity(auth),
+                CommentPage.class)
             .getBody();
 
     assertThat(firstPage.content()).hasSize(2);

@@ -10,6 +10,8 @@ import com.frequency.ticketing.web.dto.TicketCreateRequest;
 import com.frequency.ticketing.web.dto.TicketResponse;
 import com.frequency.ticketing.web.dto.TicketTransitionRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -17,18 +19,21 @@ class TicketTransitionContractTest extends AbstractIntegrationTest {
 
   @Test
   void legalTransitionReturns200() {
+    HttpHeaders auth = loginAs(TestUser.SUPPORT_1);
     TicketResponse created =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Transition me", "desc", TicketPriority.LOW, null),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Transition me", "desc", TicketPriority.LOW), auth),
                 TicketResponse.class)
             .getBody();
 
     ResponseEntity<TicketResponse> response =
-        restTemplate.postForEntity(
+        restTemplate.exchange(
             baseUrl("/tickets/" + created.id() + "/transitions"),
-            new TicketTransitionRequest(TicketStatus.IN_PROGRESS),
+            HttpMethod.POST,
+            authEntity(new TicketTransitionRequest(TicketStatus.IN_PROGRESS), auth),
             TicketResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -38,18 +43,21 @@ class TicketTransitionContractTest extends AbstractIntegrationTest {
 
   @Test
   void illegalTransitionReturns409InvalidTransition() {
+    HttpHeaders auth = loginAs(TestUser.SUPPORT_1);
     TicketResponse created =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Illegal move", "desc", TicketPriority.LOW, null),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Illegal move", "desc", TicketPriority.LOW), auth),
                 TicketResponse.class)
             .getBody();
 
     ResponseEntity<ApiError> response =
-        restTemplate.postForEntity(
+        restTemplate.exchange(
             baseUrl("/tickets/" + created.id() + "/transitions"),
-            new TicketTransitionRequest(TicketStatus.CLOSED),
+            HttpMethod.POST,
+            authEntity(new TicketTransitionRequest(TicketStatus.CLOSED), auth),
             ApiError.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);

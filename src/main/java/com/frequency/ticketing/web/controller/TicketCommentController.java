@@ -40,9 +40,11 @@ public class TicketCommentController {
   private static final int MAX_PAGE_SIZE = 100;
 
   private final CommentService commentService;
+  private final CommentMapper commentMapper;
 
-  public TicketCommentController(CommentService commentService) {
+  public TicketCommentController(CommentService commentService, CommentMapper commentMapper) {
     this.commentService = commentService;
+    this.commentMapper = commentMapper;
   }
 
   @PostMapping
@@ -64,7 +66,7 @@ public class TicketCommentController {
   public ResponseEntity<CommentResponse> addComment(
       @PathVariable UUID ticketId, @Valid @RequestBody CommentCreateRequest request) {
     Comment comment = commentService.addComment(ticketId, request.content());
-    return ResponseEntity.status(HttpStatus.CREATED).body(CommentMapper.toResponse(comment));
+    return ResponseEntity.status(HttpStatus.CREATED).body(commentMapper.toResponse(comment));
   }
 
   @GetMapping

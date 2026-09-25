@@ -11,36 +11,46 @@ import com.frequency.ticketing.web.dto.TicketDetailResponse;
 import com.frequency.ticketing.web.dto.TicketResponse;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 /** Comments returned in ascending createdAt order with content intact (FR-005). */
 class CommentIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void threeCommentsReturnedInOrderOnTicketDetail() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     UUID ticketId =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Comment history", "desc", TicketPriority.LOW, null),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Comment history", "desc", TicketPriority.LOW), auth),
                 TicketResponse.class)
             .getBody()
             .id();
 
-    restTemplate.postForEntity(
+    restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/comments"),
-        new CommentCreateRequest("first"),
+        HttpMethod.POST,
+        authEntity(new CommentCreateRequest("first"), auth),
         CommentResponse.class);
-    restTemplate.postForEntity(
+    restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/comments"),
-        new CommentCreateRequest("second"),
+        HttpMethod.POST,
+        authEntity(new CommentCreateRequest("second"), auth),
         CommentResponse.class);
-    restTemplate.postForEntity(
+    restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/comments"),
-        new CommentCreateRequest("third"),
+        HttpMethod.POST,
+        authEntity(new CommentCreateRequest("third"), auth),
         CommentResponse.class);
 
     TicketDetailResponse detail =
-        restTemplate.getForEntity(baseUrl("/tickets/" + ticketId), TicketDetailResponse.class).getBody();
+        restTemplate
+            .exchange(
+                baseUrl("/tickets/" + ticketId), HttpMethod.GET, authEntity(auth), TicketDetailResponse.class)
+            .getBody();
 
     assertThat(detail.comments()).hasSize(3);
     assertThat(detail.comments().stream().map(CommentResponse::content).toList())

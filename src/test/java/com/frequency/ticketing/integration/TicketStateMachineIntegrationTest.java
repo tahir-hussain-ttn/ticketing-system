@@ -10,6 +10,8 @@ import com.frequency.ticketing.web.dto.TicketCreateRequest;
 import com.frequency.ticketing.web.dto.TicketResponse;
 import com.frequency.ticketing.web.dto.TicketTransitionRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -20,27 +22,37 @@ import org.springframework.http.ResponseEntity;
  */
 class TicketStateMachineIntegrationTest extends AbstractIntegrationTest {
 
+  private HttpHeaders auth;
+
   private TicketResponse createTicket() {
     return restTemplate
-        .postForEntity(
+        .exchange(
             baseUrl("/tickets"),
-            new TicketCreateRequest("State machine", "desc", TicketPriority.MEDIUM, null),
+            HttpMethod.POST,
+            authEntity(new TicketCreateRequest("State machine", "desc", TicketPriority.MEDIUM), auth),
             TicketResponse.class)
         .getBody();
   }
 
   private ResponseEntity<TicketResponse> transitionOk(String ticketId, TicketStatus to) {
-    return restTemplate.postForEntity(
+    return restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/transitions"),
-        new TicketTransitionRequest(to),
+        HttpMethod.POST,
+        authEntity(new TicketTransitionRequest(to), auth),
         TicketResponse.class);
   }
 
   private ResponseEntity<ApiError> transitionRejected(String ticketId, TicketStatus to) {
-    return restTemplate.postForEntity(
+    return restTemplate.exchange(
         baseUrl("/tickets/" + ticketId + "/transitions"),
-        new TicketTransitionRequest(to),
+        HttpMethod.POST,
+        authEntity(new TicketTransitionRequest(to), auth),
         ApiError.class);
+  }
+
+  @org.junit.jupiter.api.BeforeEach
+  void logIn() {
+    auth = loginAs(TestUser.SUPPORT_1);
   }
 
   @Test
@@ -118,7 +130,11 @@ class TicketStateMachineIntegrationTest extends AbstractIntegrationTest {
 
   private TicketStatus getStatus(String ticketId) {
     return restTemplate
-        .getForEntity(baseUrl("/tickets/" + ticketId), com.frequency.ticketing.web.dto.TicketDetailResponse.class)
+        .exchange(
+            baseUrl("/tickets/" + ticketId),
+            HttpMethod.GET,
+            authEntity(auth),
+            com.frequency.ticketing.web.dto.TicketDetailResponse.class)
         .getBody()
         .status();
   }

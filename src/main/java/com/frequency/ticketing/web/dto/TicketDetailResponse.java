@@ -13,7 +13,8 @@ public record TicketDetailResponse(
     String description,
     TicketPriority priority,
     TicketStatus status,
-    String assignee,
+    UserSummary assignee,
+    UserSummary createdBy,
     Instant createdAt,
     Instant updatedAt,
     List<CommentResponse> comments) {}

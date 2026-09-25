@@ -1,9 +1,12 @@
 package com.frequency.ticketing.web.controller;
 
 import com.frequency.ticketing.domain.ticket.Ticket;
+import com.frequency.ticketing.domain.ticket.TicketScope;
 import com.frequency.ticketing.domain.ticket.TicketService;
 import com.frequency.ticketing.domain.ticket.TicketStatus;
+import com.frequency.ticketing.domain.user.CurrentUser;
 import com.frequency.ticketing.web.dto.ApiError;
+import com.frequency.ticketing.web.dto.ReassignRequest;
 import com.frequency.ticketing.web.dto.TicketCreateRequest;
 import com.frequency.ticketing.web.dto.TicketDetailResponse;
 import com.frequency.ticketing.web.dto.TicketMapper;
@@ -26,6 +29,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,9 +40,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Matches contracts/tickets-api.yaml exactly. Constructor injection only. Every endpoint is
- * annotated so the generated OpenAPI description (constitution Principle I) carries real
- * summaries and response shapes, not just the bare route table springdoc would infer on its own.
+ * Matches contracts/ticket-ownership-api.yaml exactly. Constructor injection only. Every endpoint
+ * except login (spec 005 FR-006) now requires authentication via {@code SecurityConfig}'s
+ * default-deny filter chain.
  */
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -49,13 +53,22 @@ public class TicketController {
   private static final int MAX_PAGE_SIZE = 100;
 
   private final TicketService ticketService;
+  private final TicketMapper ticketMapper;
+  private final CurrentUser currentUser;
 
-  public TicketController(TicketService ticketService) {
+  public TicketController(
+      TicketService ticketService, TicketMapper ticketMapper, CurrentUser currentUser) {
     this.ticketService = ticketService;
+    this.ticketMapper = ticketMapper;
+    this.currentUser = currentUser;
   }
 
   @PostMapping
-  @Operation(summary = "Create a ticket", description = "Creates a ticket with status OPEN (FR-001).")
+  @Operation(
+      summary = "Create a ticket",
+      description =
+          "Creates a ticket with status OPEN, auto-assigned to the least-loaded SUPPORT user "
+              + "(FR-001, FR-009, FR-010, FR-012). Requires authentication (FR-006).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
@@ -64,19 +77,25 @@ public class TicketController {
     @ApiResponse(
         responseCode = "400",
         description = "Validation failed",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Not authenticated",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
   })
   public ResponseEntity<TicketResponse> create(@Valid @RequestBody TicketCreateRequest request) {
     Ticket ticket =
         ticketService.create(
-            request.title(), request.description(), request.priority(), request.assignee());
-    return ResponseEntity.status(HttpStatus.CREATED).body(TicketMapper.toResponse(ticket));
+            request.title(), request.description(), request.priority(), currentUser.id());
+    return ResponseEntity.status(HttpStatus.CREATED).body(ticketMapper.toResponse(ticket));
   }
 
   @GetMapping
   @Operation(
       summary = "List tickets",
-      description = "Lists tickets, optionally filtered by keyword and/or status (FR-002, FR-006, FR-007).")
+      description =
+          "Lists tickets, optionally filtered by keyword/status and scoped by ownership "
+              + "(FR-016, FR-017). Requires authentication.")
   @ApiResponse(
       responseCode = "200",
       description = "Page of tickets matching the given filters",
@@ -86,20 +105,36 @@ public class TicketController {
           String q,
       @Parameter(description = "Filter by exact ticket status") @RequestParam(required = false)
           TicketStatus status,
+      @Parameter(description = "MINE, ASSIGNED, or ALL (default: all)")
+          @RequestParam(required = false)
+          TicketScope scope,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
     int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     Pageable pageable = PageRequest.of(Math.max(page, 0), effectiveSize);
-    Page<TicketResponse> result = ticketService.search(q, status, pageable);
+    TicketScope effectiveScope = scope != null ? scope : TicketScope.ALL;
+    Page<TicketResponse> result = ticketService.search(q, status, effectiveScope, pageable);
     return TicketPage.from(result);
   }
 
   @GetMapping(value = "/{ticketId}", produces = MediaType.APPLICATION_JSON_VALUE)
-  @Operation(summary = "Get ticket details", description = "Full ticket record including comments (FR-003).")
+  @Operation(
+      summary = "Get ticket details",
+      description =
+          "Full ticket record including comments (FR-003). Requires authentication and view "
+              + "authorization: creator, assignee, or SUPPORT/ADMIN only (FR-037).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
         content = @Content(schema = @Schema(implementation = TicketDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Not authenticated",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Not the creator, assignee, or SUPPORT/ADMIN",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "404",
         description = "Ticket not found",
@@ -113,8 +148,9 @@ public class TicketController {
   @Operation(
       summary = "Update ticket fields",
       description =
-          "Updates title/description/priority/assignee (FR-004). Never accepts status — status "
-              + "changes only via POST .../transitions (FR-013).")
+          "Updates title/description/priority (FR-004). Never accepts status — status changes "
+              + "only via POST .../transitions (FR-013 of spec 001). Never accepts assignee — "
+              + "reassignment only via PATCH .../assignee (FR-013 of spec 005).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -135,9 +171,8 @@ public class TicketController {
   public TicketResponse update(
       @PathVariable UUID ticketId, @Valid @RequestBody TicketUpdateRequest request) {
     Ticket ticket =
-        ticketService.update(
-            ticketId, request.title(), request.description(), request.priority(), request.assignee());
-    return TicketMapper.toResponse(ticket);
+        ticketService.update(ticketId, request.title(), request.description(), request.priority());
+    return ticketMapper.toResponse(ticket);
   }
 
   @PostMapping("/{ticketId}/transitions")
@@ -160,6 +195,34 @@ public class TicketController {
   public TicketResponse transition(
       @PathVariable UUID ticketId, @Valid @RequestBody TicketTransitionRequest request) {
     Ticket ticket = ticketService.applyTransition(ticketId, request.status());
-    return TicketMapper.toResponse(ticket);
+    return ticketMapper.toResponse(ticket);
+  }
+
+  @PatchMapping("/{ticketId}/assignee")
+  @PreAuthorize("hasRole('ADMIN')")
+  @Operation(
+      summary = "Manually reassign a ticket",
+      description = "ADMIN only (spec 005 FR-013).")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        content = @Content(schema = @Schema(implementation = TicketResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Target user is not a SUPPORT user",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Caller is not ADMIN",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Ticket or target user not found",
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public TicketResponse reassign(
+      @PathVariable UUID ticketId, @Valid @RequestBody ReassignRequest request) {
+    Ticket ticket = ticketService.reassign(ticketId, request.assigneeId());
+    return ticketMapper.toResponse(ticket);
   }
 }

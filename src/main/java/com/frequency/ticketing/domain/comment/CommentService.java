@@ -1,8 +1,10 @@
 package com.frequency.ticketing.domain.comment;
 
-import com.frequency.ticketing.domain.exception.TicketNotFoundException;
+import com.frequency.ticketing.domain.exception.ForbiddenActionException;
+import com.frequency.ticketing.domain.ticket.Ticket;
+import com.frequency.ticketing.domain.ticket.TicketService;
+import com.frequency.ticketing.domain.user.CurrentUser;
 import com.frequency.ticketing.repository.CommentRepository;
-import com.frequency.ticketing.repository.TicketRepository;
 import com.frequency.ticketing.web.dto.CommentMapper;
 import com.frequency.ticketing.web.dto.CommentPage;
 import java.util.UUID;
@@ -19,31 +21,49 @@ import org.springframework.transaction.annotation.Transactional;
 public class CommentService {
 
   private final CommentRepository commentRepository;
-  private final TicketRepository ticketRepository;
+  private final TicketService ticketService;
+  private final CommentMapper commentMapper;
+  private final CurrentUser currentUser;
 
-  public CommentService(CommentRepository commentRepository, TicketRepository ticketRepository) {
+  public CommentService(
+      CommentRepository commentRepository,
+      TicketService ticketService,
+      CommentMapper commentMapper,
+      CurrentUser currentUser) {
     this.commentRepository = commentRepository;
-    this.ticketRepository = ticketRepository;
+    this.ticketService = ticketService;
+    this.commentMapper = commentMapper;
+    this.currentUser = currentUser;
   }
 
+  /**
+   * Only the ticket's creator or its currently assigned {@code SUPPORT} user may comment (spec
+   * 005 FR-014) — a narrower rule than view authorization (FR-037), which also allows any
+   * {@code SUPPORT}/{@code ADMIN} user. The comment is attributed to the caller (FR-015).
+   */
   @Transactional
   public Comment addComment(UUID ticketId, String content) {
-    if (!ticketRepository.existsById(ticketId)) {
-      throw new TicketNotFoundException(ticketId);
+    Ticket ticket = ticketService.getById(ticketId);
+    UUID callerId = currentUser.id();
+    boolean allowed =
+        callerId.equals(ticket.getCreatedById()) || callerId.equals(ticket.getAssigneeId());
+    if (!allowed) {
+      throw new ForbiddenActionException(
+          "Only the ticket's creator or its assignee may comment (FR-014)");
     }
-    return commentRepository.save(new Comment(ticketId, content));
+    return commentRepository.save(new Comment(ticketId, content, callerId));
   }
 
   /**
    * Standalone, paginated comment listing for a ticket (feature 002-list-comments, FR-001,
-   * FR-005). Rejects with {@link TicketNotFoundException} if the ticket does not exist (FR-004).
+   * FR-005), gated by the same view authorization as the ticket itself (spec 005 FR-037).
    */
   @Transactional(readOnly = true)
   public CommentPage listByTicket(UUID ticketId, Pageable pageable) {
-    if (!ticketRepository.existsById(ticketId)) {
-      throw new TicketNotFoundException(ticketId);
-    }
+    ticketService.assertViewable(ticketId);
     return CommentPage.from(
-        commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId, pageable).map(CommentMapper::toResponse));
+        commentRepository
+            .findByTicketIdOrderByCreatedAtAsc(ticketId, pageable)
+            .map(commentMapper::toResponse));
   }
 }
