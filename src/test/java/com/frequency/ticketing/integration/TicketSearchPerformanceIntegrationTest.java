@@ -11,6 +11,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -35,6 +37,7 @@ class TicketSearchPerformanceIntegrationTest extends AbstractIntegrationTest {
     if (seeded) {
       return;
     }
+    UUID createdById = idOf(TestUser.SUPPORT_1);
     Instant now = Instant.now();
     List<Object[]> rows = new ArrayList<>(SEED_COUNT);
     for (int i = 0; i < SEED_COUNT; i++) {
@@ -46,6 +49,7 @@ class TicketSearchPerformanceIntegrationTest extends AbstractIntegrationTest {
             "seeded description " + i,
             "MEDIUM",
             "OPEN",
+            createdById.toString(),
             null,
             0L,
             now,
@@ -53,8 +57,8 @@ class TicketSearchPerformanceIntegrationTest extends AbstractIntegrationTest {
           });
     }
     jdbcTemplate.batchUpdate(
-        "INSERT INTO tickets (id, title, description, priority, status, assignee, version, created_at, updated_at) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO tickets (id, title, description, priority, status, created_by_id, assignee_id, version, created_at, updated_at) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows);
     seeded = true;
   }
@@ -62,9 +66,14 @@ class TicketSearchPerformanceIntegrationTest extends AbstractIntegrationTest {
   @Test
   void keywordSearchUnder10kTicketsCompletesUnder2Seconds() {
     seedIfNeeded();
+    HttpHeaders auth = loginAs(TestUser.SUPPORT_1);
 
     long start = System.nanoTime();
-    TicketPage page = restTemplate.getForEntity(baseUrl("/tickets?q=" + NEEDLE), TicketPage.class).getBody();
+    TicketPage page =
+        restTemplate
+            .exchange(
+                baseUrl("/tickets?q=" + NEEDLE + "&scope=all"), HttpMethod.GET, authEntity(auth), TicketPage.class)
+            .getBody();
     long elapsedMs = (System.nanoTime() - start) / 1_000_000;
 
     assertThat(page.content()).isNotEmpty();
@@ -75,9 +84,14 @@ class TicketSearchPerformanceIntegrationTest extends AbstractIntegrationTest {
   @Test
   void statusFilterUnder10kTicketsCompletesUnder2Seconds() {
     seedIfNeeded();
+    HttpHeaders auth = loginAs(TestUser.SUPPORT_1);
 
     long start = System.nanoTime();
-    TicketPage page = restTemplate.getForEntity(baseUrl("/tickets?status=OPEN"), TicketPage.class).getBody();
+    TicketPage page =
+        restTemplate
+            .exchange(
+                baseUrl("/tickets?status=OPEN&scope=all"), HttpMethod.GET, authEntity(auth), TicketPage.class)
+            .getBody();
     long elapsedMs = (System.nanoTime() - start) / 1_000_000;
 
     assertThat(page.totalElements()).isGreaterThanOrEqualTo(SEED_COUNT);

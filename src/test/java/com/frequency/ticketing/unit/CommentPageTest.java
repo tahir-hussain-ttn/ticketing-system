@@ -16,9 +16,9 @@ class CommentPageTest {
   @Test
   void fromMapsEveryFieldFromSpringPage() {
     CommentResponse c1 =
-        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "one", Instant.now());
+        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "one", "Author One", Instant.now());
     CommentResponse c2 =
-        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "two", Instant.now());
+        new CommentResponse(UUID.randomUUID(), UUID.randomUUID(), "two", "Author Two", Instant.now());
     var springPage = new PageImpl<>(List.of(c1, c2), PageRequest.of(1, 2), 5);
 
     CommentPage page = CommentPage.from(springPage);

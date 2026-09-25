@@ -10,7 +10,7 @@ import com.frequency.ticketing.web.dto.TicketResponse;
 import com.frequency.ticketing.web.dto.TicketUpdateRequest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +19,13 @@ class TicketUpdateContractTest extends AbstractIntegrationTest {
 
   @Test
   void patchUpdatesSuppliedFieldsAndReturns200() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     TicketResponse created =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Original", "desc", TicketPriority.LOW, null),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Original", "desc", TicketPriority.LOW), auth),
                 TicketResponse.class)
             .getBody();
 
@@ -31,23 +33,24 @@ class TicketUpdateContractTest extends AbstractIntegrationTest {
         restTemplate.exchange(
             baseUrl("/tickets/" + created.id()),
             HttpMethod.PATCH,
-            new HttpEntity<>(new TicketUpdateRequest(null, null, TicketPriority.CRITICAL, "jane.doe")),
+            authEntity(new TicketUpdateRequest(null, null, TicketPriority.CRITICAL), auth),
             TicketResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().priority()).isEqualTo(TicketPriority.CRITICAL);
-    assertThat(response.getBody().assignee()).isEqualTo("jane.doe");
     assertThat(response.getBody().title()).isEqualTo("Original");
   }
 
   @Test
   void patchIgnoresUnknownStatusFieldStatusStaysOpen() {
+    HttpHeaders auth = loginAs(TestUser.GENERAL_1);
     TicketResponse created =
         restTemplate
-            .postForEntity(
+            .exchange(
                 baseUrl("/tickets"),
-                new TicketCreateRequest("Status guard", "desc", TicketPriority.LOW, null),
+                HttpMethod.POST,
+                authEntity(new TicketCreateRequest("Status guard", "desc", TicketPriority.LOW), auth),
                 TicketResponse.class)
             .getBody();
 
@@ -57,7 +60,7 @@ class TicketUpdateContractTest extends AbstractIntegrationTest {
         restTemplate.exchange(
             baseUrl("/tickets/" + created.id()),
             HttpMethod.PATCH,
-            new HttpEntity<>(Map.of("title", "Still open", "status", "CLOSED")),
+            authEntity(Map.of("title", "Still open", "status", "CLOSED"), auth),
             TicketResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

@@ -14,7 +14,12 @@ public record ApiError(
     VALIDATION_FAILED,
     TICKET_NOT_FOUND,
     INVALID_TRANSITION,
-    TICKET_CONFLICT
+    TICKET_CONFLICT,
+    INVALID_CREDENTIALS,
+    UNAUTHENTICATED,
+    FORBIDDEN,
+    AI_SERVICE_UNAVAILABLE,
+    CHATBOT_CONVERSATION_NOT_FOUND
   }
 
   public static ApiError of(Code code, String message, String path) {

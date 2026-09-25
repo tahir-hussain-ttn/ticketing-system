@@ -22,6 +22,7 @@
     <maven.compiler.release>25</maven.compiler.release>
     <testcontainers.version>1.20.4</testcontainers.version>
     <springdoc.version>2.9.1</springdoc.version>
+    <pgvector.version>0.1.6</pgvector.version>
   </properties>
 
   <dependencies>
@@ -42,6 +43,18 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!-- 005-auth-rag-chatbot: authentication (research.md "Authentication mechanism") -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <!-- 005-auth-rag-chatbot: vector column type mapping for the knowledge base
+         (research.md "Vector storage" — pgvector on the existing PostgreSQL, not a new service) -->
+    <dependency>
+      <groupId>com.pgvector</groupId>
+      <artifactId>pgvector</artifactId>
+      <version>${pgvector.version}</version>
+    </dependency>
     <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
@@ -49,10 +62,11 @@
     </dependency>
 
     <!-- Database / migrations -->
+    <!-- Compile-scoped (not runtime-only): com.pgvector:pgvector's PGvector class references
+         org.postgresql.util.PGobject at compile time. -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
@@ -74,6 +88,16 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

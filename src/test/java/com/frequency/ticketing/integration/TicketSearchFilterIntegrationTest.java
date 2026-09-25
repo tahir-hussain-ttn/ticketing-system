@@ -11,15 +11,23 @@ import com.frequency.ticketing.web.dto.TicketResponse;
 import com.frequency.ticketing.web.dto.TicketTransitionRequest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 /** Keyword match, empty-result (not error), status filter, and combined filter (FR-006, FR-007). */
 class TicketSearchFilterIntegrationTest extends AbstractIntegrationTest {
 
-  private UUID create(String title, String description) {
+  // scope=all as SUPPORT sees every ticket regardless of who created it (FR-016 Assumptions).
+  private HttpHeaders auth() {
+    return loginAs(TestUser.SUPPORT_1);
+  }
+
+  private UUID create(HttpHeaders auth, String title, String description) {
     return restTemplate
-        .postForEntity(
+        .exchange(
             baseUrl("/tickets"),
-            new TicketCreateRequest(title, description, TicketPriority.MEDIUM, null),
+            HttpMethod.POST,
+            authEntity(new TicketCreateRequest(title, description, TicketPriority.MEDIUM), auth),
             TicketResponse.class)
         .getBody()
         .id();
@@ -27,23 +35,30 @@ class TicketSearchFilterIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void keywordMatchesTitleOrDescription() {
+    HttpHeaders auth = auth();
     String unique = "zx" + UUID.randomUUID().toString().substring(0, 8);
-    create(unique + " printer issue", "unrelated description");
-    create("unrelated title", "mentions " + unique + " somewhere");
-    create("completely unrelated", "nothing matches here");
+    create(auth, unique + " printer issue", "unrelated description");
+    create(auth, "unrelated title", "mentions " + unique + " somewhere");
+    create(auth, "completely unrelated", "nothing matches here");
 
     TicketPage page =
-        restTemplate.getForEntity(baseUrl("/tickets?q=" + unique), TicketPage.class).getBody();
+        restTemplate
+            .exchange(baseUrl("/tickets?q=" + unique + "&scope=all"), HttpMethod.GET, authEntity(auth), TicketPage.class)
+            .getBody();
 
     assertThat(page.content()).hasSize(2);
   }
 
   @Test
   void nonMatchingKeywordReturnsEmptyListNotError() {
+    HttpHeaders auth = auth();
     String noMatch = "zzzznomatch" + UUID.randomUUID();
 
     TicketPage page =
-        restTemplate.getForEntity(baseUrl("/tickets?q=" + noMatch), TicketPage.class).getBody();
+        restTemplate
+            .exchange(
+                baseUrl("/tickets?q=" + noMatch + "&scope=all"), HttpMethod.GET, authEntity(auth), TicketPage.class)
+            .getBody();
 
     assertThat(page.content()).isEmpty();
     assertThat(page.totalElements()).isZero();
@@ -51,21 +66,31 @@ class TicketSearchFilterIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void statusFilterReturnsOnlyMatchingStatus() {
+    HttpHeaders auth = auth();
     String marker = "statusfilter" + UUID.randomUUID().toString().substring(0, 8);
-    UUID openId = create(marker + " open ticket", "d");
-    UUID cancelledId = create(marker + " cancelled ticket", "d");
-    restTemplate.postForEntity(
+    UUID openId = create(auth, marker + " open ticket", "d");
+    UUID cancelledId = create(auth, marker + " cancelled ticket", "d");
+    restTemplate.exchange(
         baseUrl("/tickets/" + cancelledId + "/transitions"),
-        new TicketTransitionRequest(TicketStatus.CANCELLED),
+        HttpMethod.POST,
+        authEntity(new TicketTransitionRequest(TicketStatus.CANCELLED), auth),
         TicketResponse.class);
 
     TicketPage cancelledPage =
         restTemplate
-            .getForEntity(baseUrl("/tickets?q=" + marker + "&status=CANCELLED"), TicketPage.class)
+            .exchange(
+                baseUrl("/tickets?q=" + marker + "&status=CANCELLED&scope=all"),
+                HttpMethod.GET,
+                authEntity(auth),
+                TicketPage.class)
             .getBody();
     TicketPage openPage =
         restTemplate
-            .getForEntity(baseUrl("/tickets?q=" + marker + "&status=OPEN"), TicketPage.class)
+            .exchange(
+                baseUrl("/tickets?q=" + marker + "&status=OPEN&scope=all"),
+                HttpMethod.GET,
+                authEntity(auth),
+                TicketPage.class)
             .getBody();
 
     assertThat(cancelledPage.content()).extracting(TicketResponse::id).containsExactly(cancelledId);
